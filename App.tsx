@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import gsap from 'gsap';
 import type { StageElement, AnimationStep, ChatMessage, ElementType } from './types';
 import { sendMessageToAI, AIResponse } from './services/geminiService';
-import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon } from './components/icons';
+import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon, SettingsIcon, ChatBubbleIcon, CodeBracketIcon, ClearIcon } from './components/icons';
 
 // == Helper Functions ==
 const formatGSAPCode = (steps: AnimationStep[]): string => {
@@ -11,7 +11,7 @@ const formatGSAPCode = (steps: AnimationStep[]): string => {
   const timelineSteps = steps.map(step => {
     const varsString = JSON.stringify(step.vars, null, 2).replace(/"([^"]+)":/g, '$1:').replace(/\n/g, '\n  ');
     const positionString = step.position ? `, "${step.position}"` : '';
-    return `tl.to("#${step.target}", ${varsString}${positionString});`;
+    return `tl.to("${step.target}", ${varsString}${positionString});`;
   }).join('\n');
   return header + timelineSteps;
 };
@@ -19,11 +19,18 @@ const formatGSAPCode = (steps: AnimationStep[]): string => {
 // == Child Components ==
 
 const LeftPanel = ({ isCollapsed, elements, setElements, selectedElementId, setSelectedElementId, canvasSettings, setCanvasSettings }) => (
-    <div className={`bg-gray-800/50 dark:bg-gray-800/50 bg-gray-100/50 rounded-lg flex flex-col gap-4 p-4 overflow-y-auto transition-all duration-300 ${isCollapsed ? 'w-0 p-0' : 'w-full'}`} style={{minWidth: isCollapsed ? 0 : undefined}}>
-        <div className={`transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-            <CanvasSettings settings={canvasSettings} setSettings={setCanvasSettings} />
-            <ElementManager elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} />
-        </div>
+    <div className={`bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col gap-4 overflow-y-auto transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16 p-2' : 'w-80 p-4'}`}>
+        {isCollapsed ? (
+            <div className="flex flex-col items-center gap-4">
+                <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><SettingsIcon className="w-6 h-6"/></div>
+                <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><BoxIcon className="w-6 h-6"/></div>
+            </div>
+        ) : (
+            <>
+                <CanvasSettings settings={canvasSettings} setSettings={setCanvasSettings} />
+                <ElementManager elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} />
+            </>
+        )}
     </div>
 );
 
@@ -32,8 +39,8 @@ const CanvasSettings = ({ settings, setSettings }) => {
         '16:9': { width: 1920, height: 1080 }, '4:3': { width: 1024, height: 768 }, '1:1': { width: 1080, height: 1080 }, 'Mobile': { width: 430, height: 932 }
     };
     return (
-        <div className="flex flex-col gap-3 p-3 bg-gray-900/50 dark:bg-gray-900/50 bg-white/50 rounded-md mb-4">
-            <h3 className="font-bold text-cyan-500 dark:text-cyan-400">Canvas</h3>
+        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md">
+            <h3 className="font-bold text-black dark:text-white">Canvas</h3>
             <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                 <span className="self-center">Width:</span><input type="number" value={settings.width} onChange={(e) => setSettings(s => ({...s, width: parseInt(e.target.value)}))} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                 <span className="self-center">Height:</span><input type="number" value={settings.height} onChange={(e) => setSettings(s => ({...s, height: parseInt(e.target.value)}))} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
@@ -42,7 +49,7 @@ const CanvasSettings = ({ settings, setSettings }) => {
             <div className="grid grid-cols-4 gap-2 mt-2">
                 {(Object.keys(presets) as (keyof typeof presets)[]).map(key => {
                     const Icon = {'16:9': LaptopIcon, '4:3': TabletIcon, '1:1': SquareIcon, 'Mobile': PhoneIcon}[key];
-                    return <button key={key} onClick={() => setSettings(s => ({...s, ...presets[key]}))} className="p-2 flex justify-center bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors" title={key}><Icon/></button>
+                    return <button key={key} onClick={() => setSettings(s => ({...s, ...presets[key]}))} className="p-2 flex justify-center bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors" title={key}><Icon/></button>
                 })}
             </div>
         </div>
@@ -89,18 +96,18 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
     const selectedElement = elements.find(el => el.id === selectedElementId);
 
     return (
-        <div className="flex flex-col gap-3 p-3 bg-gray-900/50 dark:bg-gray-900/50 bg-white/50 rounded-md flex-grow">
-            <h3 className="font-bold text-cyan-500 dark:text-cyan-400">Elements</h3>
+        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md flex-grow">
+            <h3 className="font-bold text-black dark:text-white">Elements</h3>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
-                <button onClick={() => addElement('box')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors"><BoxIcon className="w-5 h-5 mr-1" /> Box</button>
-                <button onClick={() => addElement('circle')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors"><CircleIcon className="w-5 h-5 mr-1" /> Circ</button>
-                <button onClick={() => addElement('text')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors"><TextIcon className="w-5 h-5 mr-1" /> Text</button>
-                <button onClick={() => addElement('image')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors"><ImageIcon className="w-5 h-5 mr-1" /> Img</button>
-                <button onClick={() => addElement('video')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 rounded-md transition-colors"><VideoIcon className="w-5 h-5 mr-1" /> Vid</button>
+                <button onClick={() => addElement('box')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><BoxIcon className="w-5 h-5 mr-1" /> Box</button>
+                <button onClick={() => addElement('circle')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><CircleIcon className="w-5 h-5 mr-1" /> Circ</button>
+                <button onClick={() => addElement('text')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><TextIcon className="w-5 h-5 mr-1" /> Text</button>
+                <button onClick={() => addElement('image')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><ImageIcon className="w-5 h-5 mr-1" /> Img</button>
+                <button onClick={() => addElement('video')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><VideoIcon className="w-5 h-5 mr-1" /> Vid</button>
             </div>
             <div className="flex-grow overflow-y-auto space-y-2 pr-2 min-h-[100px]">
                 {elements.map(el => (
-                    <div key={el.id} className={`p-2 rounded-md cursor-pointer transition-all text-xs ${selectedElementId === el.id ? 'bg-cyan-500/20 ring-2 ring-cyan-500' : 'bg-gray-300/50 dark:bg-gray-700/50 hover:dark:bg-gray-700 hover:bg-gray-400/50'}`} onClick={() => setSelectedElementId(el.id)}>
+                    <div key={el.id} className={`p-2 rounded-md cursor-pointer transition-all text-xs ${selectedElementId === el.id ? 'bg-black/20 dark:bg-white/20 ring-2 ring-black dark:ring-white' : 'bg-gray-300/50 dark:bg-gray-700/50 hover:dark:bg-gray-700 hover:bg-gray-400/50'}`} onClick={() => setSelectedElementId(el.id)}>
                         <div className="flex items-center justify-between"><span className="font-mono">{el.id}</span>
                             <button onClick={(e) => { e.stopPropagation(); removeElement(el.id);}} className="text-gray-500 dark:text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                         </div>
@@ -109,7 +116,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
             </div>
             {selectedElement && (
                 <div className="border-t border-gray-300 dark:border-gray-700 pt-3 space-y-2 text-sm">
-                    <h4 className="font-bold">Properties: <span className="font-mono text-cyan-500 dark:text-cyan-400">{selectedElement.id}</span></h4>
+                    <h4 className="font-bold">Properties: <span className="font-mono text-black dark:text-white">{selectedElement.id}</span></h4>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                         <span className="self-center">X:</span><input type="number" value={selectedElement.x} onChange={e => updateElement(selectedElement.id, {x: parseInt(e.target.value)})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                         <span className="self-center">Y:</span><input type="number" value={selectedElement.y} onChange={e => updateElement(selectedElement.id, {y: parseInt(e.target.value)})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
@@ -126,7 +133,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
                         </>}
                         {(selectedElement.type === 'image' || selectedElement.type === 'video') && <>
                             <input type="file" ref={uploadInputRef} onChange={handleFileUpload} accept="image/*,video/*" className="hidden"/>
-                            <button onClick={() => uploadInputRef.current?.click()} className="col-span-2 text-center p-2 bg-cyan-600 hover:bg-cyan-500 rounded-md transition-colors">Upload</button>
+                            <button onClick={() => uploadInputRef.current?.click()} className="col-span-2 text-center p-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-80 rounded-md transition-opacity">Upload</button>
                         </>}
                         {(selectedElement.type === 'box' || selectedElement.type === 'circle') && <>
                            <span className="self-center">BG Color:</span><input type="color" value={selectedElement.backgroundColor} onChange={e => updateElement(selectedElement.id, {backgroundColor: e.target.value})} className="bg-transparent rounded p-0 w-full h-7"/>
@@ -146,6 +153,13 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
         const stageParent = stageParentRef.current;
         if (!stageParent) return;
 
+        const snapSize = 10;
+        const snapPoints = [
+            { x: 0, y: 0 }, { x: settings.width / 2, y: 0 }, { x: settings.width, y: 0 },
+            { x: 0, y: settings.height / 2 }, { x: settings.width / 2, y: settings.height / 2 }, { x: settings.width, y: settings.height / 2 },
+            { x: 0, y: settings.height }, { x: settings.width / 2, y: settings.height }, { x: settings.width, y: settings.height }
+        ];
+
         elements.forEach(el => {
             const target = document.getElementById(el.id);
             if (target && !draggableInstances.current[el.id]) {
@@ -155,6 +169,22 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
                         onSelectElement(el.id);
                         gsap.set(target, { zIndex: 1 });
                     },
+                    onDrag() {
+                        const width = this.target.offsetWidth;
+                        const height = this.target.offsetHeight;
+                        
+                        snapPoints.forEach(point => {
+                            // Snap center
+                            if (Math.abs(this.x + width/2 - point.x) < snapSize) this.x = point.x - width/2;
+                            if (Math.abs(this.y + height/2 - point.y) < snapSize) this.y = point.y - height/2;
+                            // Snap edges
+                            if (Math.abs(this.x - point.x) < snapSize) this.x = point.x;
+                            if (Math.abs(this.y - point.y) < snapSize) this.y = point.y;
+                            if (Math.abs(this.x + width - point.x) < snapSize) this.x = point.x - width;
+                            if (Math.abs(this.y + height - point.y) < snapSize) this.y = point.y - height;
+                        });
+
+                    },
                     onDragEnd() {
                         onUpdateElement(el.id, { x: Math.round(this.x), y: Math.round(this.y) });
                         gsap.set(target, { zIndex: 0 });
@@ -163,7 +193,6 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
             }
         });
 
-        // Cleanup removed elements
         Object.keys(draggableInstances.current).forEach(id => {
             if (!elements.find(el => el.id === id)) {
                 draggableInstances.current[id].kill();
@@ -171,7 +200,7 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
             }
         });
 
-    }, [elements, onSelectElement, onUpdateElement]);
+    }, [elements, onSelectElement, onUpdateElement, settings.width, settings.height]);
 
     return (
         <div className="w-full h-full bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-700 flex items-center justify-center p-4">
@@ -185,22 +214,28 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
                     const style: React.CSSProperties = {
                         position: 'absolute', left: `${el.x}px`, top: `${el.y}px`, width: el.width, height: el.height,
                         opacity: el.opacity, transform: `rotate(${el.rotation}deg)`,
-                        outline: `2px solid ${selectedElementId === el.id ? '#06b6d4' : 'transparent'}`,
+                        outline: `2px solid ${selectedElementId === el.id ? (localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#000000') : 'transparent'}`,
                         outlineOffset: '2px',
                         transition: 'outline-color 0.2s', cursor: 'grab', userSelect: 'none'
                     };
 
+                    const sharedProps = {
+                        id: el.id,
+                        className: `element ${el.type}`,
+                        style: style,
+                    };
+
                     const renderContent = () => {
                         switch (el.type) {
-                            case 'box': return <div id={el.id} style={{ ...style, backgroundColor: el.backgroundColor }} />;
-                            case 'circle': return <div id={el.id} style={{ ...style, backgroundColor: el.backgroundColor, borderRadius: '50%' }} />;
-                            case 'text': return <div id={el.id} style={{ ...style, color: el.color, fontSize: `${el.fontSize}px`, fontWeight: el.fontWeight as any, background: 'transparent' }}>{el.text}</div>;
+                            case 'box': return <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor }} />;
+                            case 'circle': return <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor, borderRadius: '50%' }} />;
+                            case 'text': return <div {...sharedProps} style={{ ...style, color: el.color, fontSize: `${el.fontSize}px`, fontWeight: el.fontWeight as any, background: 'transparent' }}>{el.text}</div>;
                             case 'image':
-                                return el.src ? <img id={el.id} src={el.src} style={{ ...style, objectFit: 'cover' }} alt={el.id} /> : 
-                                <div id={el.id} style={{ ...style, backgroundColor: el.backgroundColor, color: el.color }} className="flex items-center justify-center"><PhotoIcon/></div>;
+                                return el.src ? <img {...sharedProps} src={el.src} style={{ ...style, objectFit: 'cover' }} alt={el.id} /> : 
+                                <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor, color: el.color }} className="flex items-center justify-center"><PhotoIcon/></div>;
                             case 'video':
-                                return el.src ? <video id={el.id} src={el.src} style={{ ...style, objectFit: 'cover' }} autoPlay={el.autoplay} loop={el.loop} muted={el.muted} /> :
-                                <div id={el.id} style={{ ...style, backgroundColor: el.backgroundColor, color: el.color }} className="flex items-center justify-center"><VideoCameraIcon/></div>;
+                                return el.src ? <video {...sharedProps} src={el.src} style={{ ...style, objectFit: 'cover' }} autoPlay={el.autoplay} loop={el.loop} muted={el.muted} /> :
+                                <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor, color: el.color }} className="flex items-center justify-center"><VideoCameraIcon/></div>;
                             default: return null;
                         }
                     };
@@ -215,15 +250,24 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
 const RightPanel = ({ isCollapsed, chatHistory, onSendMessage, isLoading, animationSteps, elements, canvasSettings }) => {
     const [activeTab, setActiveTab] = useState('chat');
     return (
-        <div className={`bg-gray-800/50 dark:bg-gray-800/50 bg-gray-100/50 rounded-lg flex flex-col p-1 transition-all duration-300 ${isCollapsed ? 'w-0 p-0' : 'w-full'}`} style={{minWidth: isCollapsed ? 0 : undefined}}>
-            <div className={`flex border-b border-gray-300 dark:border-gray-700 transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                <button onClick={() => setActiveTab('chat')} className={`flex-1 p-3 font-bold ${activeTab === 'chat' ? 'bg-gray-200 dark:bg-gray-800 text-cyan-500 dark:text-cyan-400' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-700/50'}`}>Chat</button>
-                <button onClick={() => setActiveTab('export')} className={`flex-1 p-3 font-bold ${activeTab === 'export' ? 'bg-gray-200 dark:bg-gray-800 text-cyan-500 dark:text-cyan-400' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-700/50'}`}>Export</button>
-            </div>
-            <div className={`flex-grow p-3 min-h-0 transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                {activeTab === 'chat' && <ChatInterface history={chatHistory} onSendMessage={onSendMessage} isLoading={isLoading} />}
-                {activeTab === 'export' && <ExportPanel animationSteps={animationSteps} elements={elements} canvasSettings={canvasSettings} />}
-            </div>
+        <div className={`bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16 p-2' : 'w-96 p-1'}`}>
+            {isCollapsed ? (
+                <div className="flex flex-col items-center gap-4">
+                    <button onClick={() => setActiveTab('chat')} className={`p-2 rounded-md ${activeTab === 'chat' ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-200 dark:bg-gray-700'}`}><ChatBubbleIcon className="w-6 h-6"/></button>
+                    <button onClick={() => setActiveTab('export')} className={`p-2 rounded-md ${activeTab === 'export' ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-200 dark:bg-gray-700'}`}><CodeBracketIcon className="w-6 h-6"/></button>
+                </div>
+            ) : (
+                <>
+                    <div className="flex border-b border-gray-300 dark:border-gray-700">
+                        <button onClick={() => setActiveTab('chat')} className={`flex-1 p-3 font-bold transition-colors ${activeTab === 'chat' ? 'bg-gray-200 dark:bg-gray-800 text-black dark:text-white' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-700/50'}`}>Chat</button>
+                        <button onClick={() => setActiveTab('export')} className={`flex-1 p-3 font-bold transition-colors ${activeTab === 'export' ? 'bg-gray-200 dark:bg-gray-800 text-black dark:text-white' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-700/50'}`}>Export</button>
+                    </div>
+                    <div className="flex-grow p-3 min-h-0">
+                        {activeTab === 'chat' && <ChatInterface history={chatHistory} onSendMessage={onSendMessage} isLoading={isLoading} />}
+                        {activeTab === 'export' && <ExportPanel animationSteps={animationSteps} elements={elements} canvasSettings={canvasSettings} />}
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -246,16 +290,16 @@ const ChatInterface = ({ history, onSendMessage, isLoading }) => {
             <div className="flex-grow overflow-y-auto space-y-4 pr-2">
                 {history.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs lg:max-w-sm p-3 rounded-lg ${msg.role === 'user' ? 'bg-cyan-600 text-white' : 'bg-gray-300 dark:bg-gray-700'}`}>
-                            <p className="text-sm">{msg.text}</p>
+                        <div className={`max-w-xs lg:max-w-sm p-3 rounded-lg ${msg.role === 'user' ? 'bg-black text-white' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                         </div>
                     </div>
                 ))}
                  {isLoading && <div className="flex justify-start"><div className="p-3 rounded-lg bg-gray-300 dark:bg-gray-700"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800 dark:border-white"></div></div></div>}
             </div>
             <div className="mt-4 flex items-center gap-2">
-                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="e.g., Make the blue box spin" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none" disabled={isLoading} />
-                <button onClick={handleSend} disabled={isLoading} className="p-2 bg-cyan-600 rounded-md hover:bg-cyan-500 disabled:bg-gray-600"><SendIcon className="w-5 h-5 rotate-90 text-white"/></button>
+                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="e.g., Make the blue box spin" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none" disabled={isLoading} />
+                <button onClick={handleSend} disabled={isLoading} className="p-2 bg-black dark:bg-white rounded-md hover:opacity-80 disabled:opacity-50"><SendIcon className="w-5 h-5 rotate-90 text-white dark:text-black"/></button>
             </div>
         </div>
     );
@@ -269,12 +313,13 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
     const generateExportCode = useCallback(() => {
         const elementHTML = elements.map(el => {
             const baseStyle = `position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}; height: ${el.height}; opacity: ${el.opacity}; transform: rotate(${el.rotation}deg);`;
+            const classAttr = `class="element ${el.type}"`;
             switch(el.type) {
-                case 'box': return `    <div id="${el.id}" style="${baseStyle} background-color: ${el.backgroundColor};"></div>`;
-                case 'circle': return `    <div id="${el.id}" style="${baseStyle} background-color: ${el.backgroundColor}; border-radius: 50%;"></div>`;
-                case 'text': return `    <div id="${el.id}" style="${baseStyle} color: ${el.color}; font-size: ${el.fontSize}px; font-weight: ${el.fontWeight};">${el.text}</div>`;
-                case 'image': return `    <img id="${el.id}" src="${el.src}" style="${baseStyle} object-fit: cover;" alt="${el.id}">`;
-                case 'video': return `    <video id="${el.id}" src="${el.src}" style="${baseStyle} object-fit: cover;" ${el.autoplay ? 'autoplay' : ''} ${el.loop ? 'loop' : ''} ${el.muted ? 'muted' : ''}></video>`;
+                case 'box': return `    <div id="${el.id}" ${classAttr} style="${baseStyle} background-color: ${el.backgroundColor};"></div>`;
+                case 'circle': return `    <div id="${el.id}" ${classAttr} style="${baseStyle} background-color: ${el.backgroundColor}; border-radius: 50%;"></div>`;
+                case 'text': return `    <div id="${el.id}" ${classAttr} style="${baseStyle} color: ${el.color}; font-size: ${el.fontSize}px; font-weight: ${el.fontWeight};">${el.text}</div>`;
+                case 'image': return `    <img id="${el.id}" ${classAttr} src="${el.src}" style="${baseStyle} object-fit: cover;" alt="${el.id}">`;
+                case 'video': return `    <video id="${el.id}" ${classAttr} src="${el.src}" style="${baseStyle} object-fit: cover;" ${el.autoplay ? 'autoplay' : ''} ${el.loop ? 'loop' : ''} ${el.muted ? 'muted' : ''}></video>`;
                 default: return '';
             }
         }).join('\n');
@@ -290,9 +335,9 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
     return (
         <div className="flex flex-col h-full">
             <div className="flex border-b border-gray-400 dark:border-gray-600 text-sm">
-                <button onClick={() => setActiveTab('gsap')} className={`px-4 py-2 ${activeTab === 'gsap' ? 'border-b-2 border-cyan-500 dark:border-cyan-400 text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>GSAP Code</button>
-                <button onClick={() => setActiveTab('html')} className={`px-4 py-2 ${activeTab === 'html' ? 'border-b-2 border-cyan-500 dark:border-cyan-400 text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>HTML Export</button>
-                <button onClick={() => setActiveTab('instructions')} className={`px-4 py-2 ${activeTab === 'instructions' ? 'border-b-2 border-cyan-500 dark:border-cyan-400 text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>Instructions</button>
+                <button onClick={() => setActiveTab('gsap')} className={`px-4 py-2 ${activeTab === 'gsap' ? 'border-b-2 border-black dark:border-white text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>GSAP Code</button>
+                <button onClick={() => setActiveTab('html')} className={`px-4 py-2 ${activeTab === 'html' ? 'border-b-2 border-black dark:border-white text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>HTML Export</button>
+                <button onClick={() => setActiveTab('instructions')} className={`px-4 py-2 ${activeTab === 'instructions' ? 'border-b-2 border-black dark:border-white text-gray-800 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>Instructions</button>
             </div>
             <div className="relative flex-grow mt-2 min-h-0">
                 <pre className="h-full bg-gray-50 dark:bg-gray-900 p-3 rounded-md overflow-auto text-xs font-mono"><code>
@@ -300,12 +345,45 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
                     {activeTab === 'html' && exportCode}
                     {activeTab === 'instructions' && instructions}
                 </code></pre>
-                <button onClick={() => handleCopy(activeTab === 'gsap' ? gsapCode : activeTab === 'html' ? exportCode : instructions)} className="absolute top-2 right-2 p-2 rounded-md bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 transition-colors" title="Copy Code"><CopyIcon className="w-4 h-4"/></button>
+                <button onClick={() => handleCopy(activeTab === 'gsap' ? gsapCode : activeTab === 'html' ? exportCode : instructions)} className="absolute top-2 right-2 p-2 rounded-md bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" title="Copy Code"><CopyIcon className="w-4 h-4"/></button>
                 {copied && <span className="absolute bottom-2 right-2 text-xs bg-green-500 text-white px-2 py-1 rounded">Copied!</span>}
             </div>
         </div>
     );
 };
+
+const TimelinePanel = ({ steps, onPlayPause, onRestart, onClear, isPlaying }) => (
+    <div className="bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col p-3 gap-2">
+        <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm">Animation Timeline</h3>
+            <div className="flex items-center space-x-2">
+                <button onClick={onPlayPause} className="p-2 rounded-full bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" title={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
+                <button onClick={onRestart} className="p-2 rounded-full bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" title="Restart"><ReplayIcon /></button>
+                <button onClick={onClear} className="p-2 rounded-full bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" title="Clear Animation"><ClearIcon /></button>
+            </div>
+        </div>
+        <div className="flex-grow bg-white/50 dark:bg-gray-900/50 p-2 rounded-md min-h-[60px] max-h-[120px] overflow-y-auto">
+            {steps.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">Timeline is empty. Ask the AI to create an animation!</p>
+            ) : (
+                <ol className="text-xs font-mono space-y-1">
+                    {steps.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                            <span className="text-gray-500">{i + 1}.</span>
+                            <div className="flex-grow">
+                                <span className="text-purple-600 dark:text-purple-400">to</span>(
+                                <span className="text-red-600 dark:text-red-400">"{step.target}"</span>, 
+                                <span className="text-blue-600 dark:text-blue-400">{JSON.stringify(step.vars)}</span>
+                                {step.position && <span className="text-green-600 dark:text-green-400">, "{step.position}"</span>}
+                                )
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </div>
+    </div>
+);
 
 
 // == Main App Component ==
@@ -333,8 +411,6 @@ export default function App() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   
   const resetElementsToInitialState = useCallback(() => {
-    timelineRef.current?.kill();
-    timelineRef.current = null;
     gsap.set(elements.map(e => `#${e.id}`), { clearProps: "all" });
   }, [elements]);
 
@@ -342,26 +418,76 @@ export default function App() {
     setIsLoading(true);
     setChatHistory(prev => [...prev, { role: 'user', text: message }]);
     resetElementsToInitialState();
-    const aiResponse: AIResponse = await sendMessageToAI(message, elements);
+    const aiResponse: AIResponse = await sendMessageToAI(message, elements, selectedElementId, animationSteps);
 
-    if (aiResponse.explanation) setChatHistory(prev => [...prev, { role: 'model', text: aiResponse.explanation }]);
-    if (aiResponse.response_type === 'element_creation' && aiResponse.new_elements) setElements(prev => [...prev, ...aiResponse.new_elements!]);
-    if (aiResponse.response_type === 'element_modification' && aiResponse.modified_elements) {
-        setElements(prev => prev.map(el => {
-            const mod = aiResponse.modified_elements!.find(m => m.id === el.id);
-            return mod ? { ...el, ...mod.props } : el;
-        }));
+    try {
+        if (aiResponse.explanation) {
+            setChatHistory(prev => [...prev, { role: 'model', text: aiResponse.explanation }]);
+        }
+
+        if (aiResponse.response_type === 'element_creation' && Array.isArray(aiResponse.new_elements)) {
+            setElements(prev => [...prev, ...aiResponse.new_elements!]);
+        }
+        
+        if (aiResponse.response_type === 'element_modification' && Array.isArray(aiResponse.modified_elements)) {
+            setElements(prev => {
+                const newElements = [...prev];
+                aiResponse.modified_elements!.forEach(mod => {
+                    const elementIndex = newElements.findIndex(e => e.id === mod.id);
+                    if (elementIndex > -1) {
+                        newElements[elementIndex] = { ...newElements[elementIndex], ...mod.props };
+                    }
+                });
+                return newElements;
+            });
+        }
+        
+        if (aiResponse.response_type === 'animation' && Array.isArray(aiResponse.animation_steps) && aiResponse.animation_steps.length > 0) {
+            setAnimationSteps(prev => [...prev, ...aiResponse.animation_steps!]);
+        }
+    } catch (error) {
+        console.error("Error processing AI response:", error);
+        setChatHistory(prev => [...prev, { role: 'model', text: "I'm sorry, something went wrong while applying the changes. This is likely due to a malformed response from the AI. Please check the console for details and try again." }]);
+    } finally {
+        setIsLoading(false);
     }
-    if (aiResponse.response_type === 'animation' && aiResponse.animation_steps) {
-        setAnimationSteps(aiResponse.animation_steps);
-        const tl = gsap.timeline({ onComplete: () => setIsPlaying(false), onStart: () => setIsPlaying(true) });
-        aiResponse.animation_steps.forEach(step => tl.to(`#${step.target}`, step.vars, step.position));
-        timelineRef.current = tl;
-    } else {
-        setAnimationSteps([]);
+  }, [elements, resetElementsToInitialState, selectedElementId, animationSteps]);
+  
+  useEffect(() => {
+    if (timelineRef.current) {
+        timelineRef.current.kill();
     }
-    setIsLoading(false);
-  }, [elements, resetElementsToInitialState]);
+    const tl = gsap.timeline({
+        onStart: () => setIsPlaying(true),
+        onComplete: () => {
+            setIsPlaying(false);
+            tl.getChildren().forEach(tween => {
+               (tween.targets() as HTMLElement[]).forEach(target => {
+                   const id = target.id;
+                   const elementInState = elements.find(el => el.id === id);
+                   if (!elementInState) return;
+
+                   const propsToUpdate: Partial<StageElement> = {};
+                   Object.keys(tween.vars).forEach(key => {
+                       if (key in elementInState) {
+                           const propKey = key as keyof StageElement;
+                           let value: any = gsap.getProperty(target, propKey as string);
+                           if (typeof elementInState[propKey] === 'number') {
+                               value = parseFloat(value) || 0;
+                           }
+                           (propsToUpdate as any)[propKey] = value;
+                       }
+                   });
+                   setElements(prev => prev.map(el => el.id === id ? { ...el, ...propsToUpdate } : el));
+               });
+            });
+        }
+    });
+
+    animationSteps.forEach(step => tl.to(step.target, step.vars, step.position));
+    timelineRef.current = tl;
+  }, [animationSteps, elements]);
+
 
   const updateElementPosition = useCallback((id: string, newProps: Partial<StageElement>) => {
       setElements(prev => prev.map(el => el.id === id ? { ...el, ...newProps } : el));
@@ -369,12 +495,24 @@ export default function App() {
 
   const handlePlayPause = () => {
     if (!timelineRef.current) return;
-    if (isPlaying) timelineRef.current.pause();
-    else if (timelineRef.current.progress() === 1) timelineRef.current.restart();
-    else timelineRef.current.play();
-    setIsPlaying(!isPlaying);
+    if (timelineRef.current.isActive()) {
+        timelineRef.current.pause();
+        setIsPlaying(false);
+    } else {
+        if (timelineRef.current.progress() === 1) {
+            timelineRef.current.restart();
+        } else {
+            timelineRef.current.play();
+        }
+        setIsPlaying(true);
+    }
   };
   const handleRestart = () => { timelineRef.current?.restart(); setIsPlaying(true); };
+  const handleClearAnimation = () => {
+    resetElementsToInitialState();
+    setAnimationSteps([]);
+    setIsPlaying(false);
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col p-4 font-sans">
@@ -391,28 +529,25 @@ export default function App() {
         <main className="flex-grow flex gap-4 mt-4 min-h-0">
             <div className="relative h-full flex items-stretch">
                 <LeftPanel isCollapsed={isLeftPanelCollapsed} elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} canvasSettings={canvasSettings} setCanvasSettings={setCanvasSettings} />
-                <button onClick={() => setLeftPanelCollapsed(c => !c)} className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 rounded-r-lg flex items-center justify-center hover:bg-cyan-500">
+                <button onClick={() => setLeftPanelCollapsed(c => !c)} className="absolute top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" style={{right: '-1.5rem', borderRadius: '0 0.5rem 0.5rem 0'}}>
                     <ChevronRightIcon className={`w-5 h-5 transition-transform ${isLeftPanelCollapsed ? '' : 'rotate-180'}`} />
                 </button>
             </div>
 
             <div className="flex-grow flex flex-col gap-4 min-w-0">
               <Stage elements={elements} selectedElementId={selectedElementId} onSelectElement={setSelectedElementId} onUpdateElement={updateElementPosition} settings={canvasSettings}/>
-              <div className="bg-gray-200 dark:bg-gray-800/50 p-3 rounded-lg flex items-center justify-center space-x-4">
-                  <button onClick={handlePlayPause} className="p-2 rounded-full bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 transition-colors" title={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</button>
-                  <button onClick={handleRestart} className="p-2 rounded-full bg-gray-300 dark:bg-gray-700 hover:bg-cyan-500 transition-colors" title="Restart"><ReplayIcon /></button>
-              </div>
+              <TimelinePanel steps={animationSteps} onPlayPause={handlePlayPause} onRestart={handleRestart} onClear={handleClearAnimation} isPlaying={isPlaying}/>
             </div>
 
             <div className="relative h-full flex items-stretch">
                 <RightPanel isCollapsed={isRightPanelCollapsed} chatHistory={chatHistory} onSendMessage={handleSendMessage} isLoading={isLoading} animationSteps={animationSteps} elements={elements} canvasSettings={canvasSettings} />
-                <button onClick={() => setRightPanelCollapsed(c => !c)} className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 rounded-l-lg flex items-center justify-center hover:bg-cyan-500">
+                <button onClick={() => setRightPanelCollapsed(c => !c)} className="absolute top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" style={{left: '-1.5rem', borderRadius: '0.5rem 0 0 0.5rem'}}>
                     <ChevronLeftIcon className={`w-5 h-5 transition-transform ${isRightPanelCollapsed ? '' : 'rotate-180'}`} />
                 </button>
             </div>
         </main>
         <footer className="text-center pt-4 mt-4 border-t border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-            Made with ♡ by <a href="https://cokeroluwafemi.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">Coker Oluwafemi</a>
+            Made with ♡ by <a href="https://cokeroluwafemi.com" target="_blank" rel="noopener noreferrer" className="text-black dark:text-white hover:underline">Coker Oluwafemi</a>
         </footer>
     </div>
   );

@@ -5,42 +5,37 @@ let chat: Chat | null = null;
 
 const initializeChat = () => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const systemInstruction = `You are an expert GSAP and web animation assistant. Your goal is to help users create animations by interpreting their natural language commands. You will control a scene with elements and a GSAP timeline. You MUST respond in a specific JSON format. Do not add any text outside the JSON object.
+  const systemInstruction = `You are GSAP-GPT, a world-class expert in the GreenSock Animation Platform (GSAP). Your purpose is to translate natural language into high-quality GSAP animations and element manipulations. You operate within a web-based playground and MUST respond ONLY with a specific JSON format. Do not add any text, markdown, or commentary outside the JSON object.
 
-The user will provide a message and the current list of elements on the stage. Based on this, you will decide on an action.
+**Core Context & Rules:**
+*   **Context Awareness:** You will be provided with the \`selected_element_id\`. If the user's request is ambiguous (e.g., "make it spin", "move it"), YOU MUST assume they are referring to this selected element. Use its ID as the target. If no element is selected, ask for clarification.
+*   **Conversational Timeline Building:** You will be provided with the \`current_timeline\`. Your primary goal is to ADD animation steps to this existing timeline, not replace it. For example, if the current timeline has a "move" step, and the user says "then make it spin", you should generate ONLY the new "spin" step.
+*   **GSAP Knowledge:** You can animate CSS properties. Common ones are \`x\` (translateX), \`y\` (translateY), \`rotation\` (rotate), \`scale\`, \`opacity\`, \`width\`, \`height\`, \`backgroundColor\`. You understand relative values (\`"+=100"\`), easing (\`"bounce.out"\`), duration, and staggering (\`{ each: 0.2 }\`).
+*   **Targeting:** For targets, use the element ID selector (e.g., "#box-12345") for single elements, or a class selector for multiple elements of the same type (e.g., ".box", ".circle").
 
 **Possible Actions & JSON Responses:**
 
-1.  **Create Elements**: If the user asks to add something (e.g., "add a red square", "put some text that says hello").
-    - The \`response_type\` will be "element_creation".
-    - The \`explanation\` will be a confirmation message, e.g., "Okay, I've added the new elements to the stage for you.".
-    - The \`new_elements\` property will be an array of one or more \`StageElement\` objects to be added. Ensure new elements have a unique \`id\` (e.g., \`type-timestamp\`). Default size is 100x100. Default position is x:50, y:50. For image/video, you don't need to set a 'src', it will be a placeholder that the user can fill.
+1.  **Create Elements**: User asks to add something ("add a red square").
+    -   \`response_type\`: "element_creation"
+    -   \`explanation\`: Confirmation message (e.g., "Okay, I've added a new box.").
+    -   \`new_elements\`: Array of one or more \`StageElement\` objects. Default size 100x100, position x:50, y:50. For image/video, create a placeholder without a 'src'.
 
-2.  **Modify Elements**: If the user asks to change a property of an existing element (e.g., "make box-1 blue", "change the text", "move the circle to x 200").
-    - The \`response_type\` will be "element_modification".
-    - The \`explanation\` will be a confirmation, e.g., "I've updated the properties of the element(s).".
-    - The \`modified_elements\` property will be an array of objects, each with an \`id\` and a \`props\` object containing the properties to change. This includes changing the placeholder colors for images/videos.
+2.  **Modify Elements**: User asks to change a static property ("make box-1 blue"). This is for non-animation changes.
+    -   \`response_type\`: "element_modification"
+    -   \`explanation\`: Confirmation (e.g., "I've updated the box's color.").
+    -   \`modified_elements\`: Array of objects, each with an \`id\` and a \`props\` object of properties to change.
 
-3.  **Generate Animation**: If the user describes a motion or animation (e.g., "make the circle spin", "move the box to the right").
-    - The \`response_type\` will be "animation".
-    - The \`explanation\` will be a message like "Here is the animation you described. Press play to see it!".
-    - The \`animation_steps\` property will be an array of \`AnimationStep\` objects for the GSAP timeline.
+3.  **Generate/Add to Animation**: User describes a motion ("make the circle spin").
+    -   \`response_type\`: "animation"
+    -   \`explanation\`: Confirmation ("Here is the animation you described.").
+    -   \`animation_steps\`: An array containing ONLY THE NEW steps to be added to the timeline.
 
-4.  **Answer a Question / Clarify**: If the user asks a question or the request is unclear.
-    - The \`response_type\` will be "clarification".
-    - The \`explanation\` will be your answer or clarifying question.
+4.  **Answer a Question / Clarify**: Request is unclear or is a question.
+    -   \`response_type\`: "clarification"
+    -   \`explanation\`: Your answer or clarifying question.
 
-**Element Schema (\`StageElement\`):**
-\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: string, height: string, rotation: number, opacity: number, backgroundColor?: string, color?: string, text?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
-- Note: For 'image' and 'video', \`backgroundColor\` is the placeholder's frame color and \`color\` is the placeholder's icon color.
-
-**Animation Schema (\`AnimationStep\`):**
-\`target: string (CSS selector), vars: object, position?: string\`
-
-**Rules:**
-*   Always provide a friendly and helpful \`explanation\`.
-*   Element IDs are crucial. Refer to elements by their ID. If the user uses a vague description like "the box", use the ID of the most likely target.
-*   The origin (0,0) is the top-left of the stage.`;
+**Crucial Final Instruction:**
+Your responses must be flawless JSON, adhering strictly to the schema. Do not add any commentary. Your goal is to be a silent, efficient code generator.`;
     
   chat = ai.chats.create({
       model: 'gemini-2.5-flash',
@@ -85,6 +80,7 @@ The user will provide a message and the current list of elements on the stage. B
                             id: { type: Type.STRING },
                             props: {
                                 type: Type.OBJECT,
+                                description: "An object containing the element properties to change. Keys should match the StageElement schema.",
                                 properties: {
                                     x: { type: Type.NUMBER },
                                     y: { type: Type.NUMBER },
@@ -93,8 +89,8 @@ The user will provide a message and the current list of elements on the stage. B
                                     rotation: { type: Type.NUMBER },
                                     opacity: { type: Type.NUMBER },
                                     backgroundColor: { type: Type.STRING },
-                                    text: { type: Type.STRING },
                                     color: { type: Type.STRING },
+                                    text: { type: Type.STRING },
                                     fontSize: { type: Type.NUMBER },
                                     fontWeight: { type: Type.STRING },
                                     src: { type: Type.STRING },
@@ -114,15 +110,28 @@ The user will provide a message and the current list of elements on the stage. B
                             target: { type: Type.STRING },
                             vars: {
                                 type: Type.OBJECT,
+                                description: "A GSAP vars object. Can include properties like x, y, scale, rotation, opacity, duration, ease, stagger, backgroundColor, etc. Values for x and y can be numbers or strings for relative values (e.g., '+=100'). Ease should be a GSAP ease string.",
                                 properties: {
-                                    x: { type: Type.NUMBER },
-                                    y: { type: Type.NUMBER },
-                                    rotation: { type: Type.NUMBER },
+                                    x: { type: Type.STRING },
+                                    y: { type: Type.STRING },
+                                    width: { type: Type.STRING },
+                                    height: { type: Type.STRING },
+                                    rotation: { type: Type.STRING },
                                     scale: { type: Type.NUMBER },
                                     opacity: { type: Type.NUMBER },
-                                    duration: { type: Type.NUMBER },
                                     backgroundColor: { type: Type.STRING },
                                     color: { type: Type.STRING },
+                                    fontSize: { type: Type.STRING },
+                                    duration: { type: Type.NUMBER },
+                                    delay: { type: Type.NUMBER },
+                                    ease: { type: Type.STRING },
+                                    stagger: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            each: { type: Type.NUMBER },
+                                            from: { type: Type.STRING }
+                                        }
+                                    }
                                 }
                             },
                             position: { type: Type.STRING }
@@ -145,7 +154,7 @@ export interface AIResponse {
 }
 
 
-export const sendMessageToAI = async (message: string, elements: StageElement[]): Promise<AIResponse> => {
+export const sendMessageToAI = async (message: string, elements: StageElement[], selectedElementId: string | null, animationSteps: AnimationStep[]): Promise<AIResponse> => {
   if (!chat) {
     initializeChat();
   }
@@ -154,20 +163,25 @@ export const sendMessageToAI = async (message: string, elements: StageElement[])
     throw new Error("Message cannot be empty.");
   }
   
-  // Sanitize elements to avoid sending large base64 strings
   const sanitizedElements = elements.map(el => {
     if (el.src && el.src.startsWith('data:')) {
-        return { ...el, src: 'data:...' }; // Truncate base64 data
+        return { ...el, src: 'data:...' };
     }
     return el;
   });
 
-  const prompt = `User message: "${message}"\n\nCurrent elements on stage:\n${JSON.stringify(sanitizedElements, null, 2)}`;
+  const prompt = `User message: "${message}"\n\nContext:\n- Current elements on stage: ${JSON.stringify(sanitizedElements, null, 2)}\n- Selected element ID: ${selectedElementId ? `"${selectedElementId}"` : "null"}\n- Current timeline steps: ${JSON.stringify(animationSteps, null, 2)}`;
 
   try {
     const response = await chat!.sendMessage({ message: prompt });
     const jsonText = response.text.trim();
     if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+        const jsonMatch = jsonText.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+            const extractedJson = jsonMatch[1].trim();
+            const parsedResponse = JSON.parse(extractedJson);
+            return parsedResponse as AIResponse;
+        }
         throw new Error('AI did not return valid JSON.');
     }
     const parsedResponse = JSON.parse(jsonText);
@@ -176,7 +190,7 @@ export const sendMessageToAI = async (message: string, elements: StageElement[])
     console.error("Error communicating with AI:", error);
     return {
         response_type: 'error',
-        explanation: "Sorry, I encountered an error trying to process that. Maybe try phrasing it differently?",
+        explanation: "Sorry, I encountered an error trying to process that. The AI's response might have been malformed. Please try phrasing your request differently.",
         error_message: error instanceof Error ? error.message : "An unknown error occurred."
     };
   }
