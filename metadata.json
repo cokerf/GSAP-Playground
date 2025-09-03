@@ -1,0 +1,5 @@
+{
+  "name": "GSAP AI Timeline Editor",
+  "description": "An AI-powered application that generates GSAP animation timelines from natural language instructions. Add elements to the stage, describe the animation you want, and let the AI generate the code for you.",
+  "requestFramePermissions": []
+}
