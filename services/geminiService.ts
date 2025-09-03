@@ -1,95 +1,108 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 import type { StageElement, AnimationStep } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+let chat: Chat | null = null;
 
-export const generateAnimationSteps = async (instruction: string, elements: StageElement[]): Promise<AnimationStep[]> => {
-  if (!instruction.trim()) {
-    throw new Error("Instruction cannot be empty.");
-  }
-  if (elements.length === 0) {
-    throw new Error("Please add at least one element to the stage.");
-  }
+const initializeChat = () => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  // FIX: Reworded the system instruction to avoid potential parsing issues with backticks and colons in the template literal.
+  // The original prompt string was likely causing "Cannot find name" errors due to a misinterpretation by a parser/linter.
+  // This new prompt is clearer for the model and safer for tooling.
+  const systemInstruction = `You are "Sparky", an expert GSAP and web animation assistant. Your goal is to help users create animations by interpreting their natural language commands. You will control a scene with elements and a GSAP timeline. You MUST respond in a specific JSON format. Do not add any text outside the JSON object.
 
-  const formattedElements = elements.map(el => ({ id: el.id, type: el.type }));
+The user will provide a message and the current list of elements on the stage. Based on this, you will decide on an action.
 
-  const prompt = `
-    You are an expert GSAP 3 animation code generator. Your task is to translate a user's natural language instruction into a sequence of GSAP timeline animations.
-    The user wants to animate elements on a stage.
+**Possible Actions & JSON Responses:**
+
+1.  **Create Elements**: If the user asks to add something (e.g., "add a red square", "put some text that says hello").
+    - The \`response_type\` will be "element_creation".
+    - The \`explanation\` will be a confirmation message, e.g., "Okay, I've added the new elements to the stage for you.".
+    - The \`new_elements\` property will be an array of one or more \`StageElement\` objects to be added. Ensure new elements have a unique \`id\` (e.g., \`type-timestamp\`). Default size is 100x100. Default position is x:50, y:50.
+
+2.  **Modify Elements**: If the user asks to change a property of an existing element (e.g., "make box-1 blue", "change the text").
+    - The \`response_type\` will be "element_modification".
+    - The \`explanation\` will be a confirmation, e.g., "I've updated the properties of the element(s).".
+    - The \`modified_elements\` property will be an array of objects, each with an \`id\` and a \`props\` object containing the properties to change.
+
+3.  **Generate Animation**: If the user describes a motion or animation (e.g., "make the circle spin", "move the box to the right").
+    - The \`response_type\` will be "animation".
+    - The \`explanation\` will be a message like "Here is the animation you described. Press play to see it!".
+    - The \`animation_steps\` property will be an array of \`AnimationStep\` objects for the GSAP timeline.
+
+4.  **Answer a Question / Clarify**: If the user asks a question or the request is unclear.
+    - The \`response_type\` will be "clarification".
+    - The \`explanation\` will be your answer or clarifying question.
+
+**Element Schema (\`StageElement\`):**
+\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: number, height: number, rotation: number, opacity: number, backgroundColor?: string, text?: string, color?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
+
+**Animation Schema (\`AnimationStep\`):**
+\`target: string (CSS selector), vars: object, position?: string\`
+
+**Rules:**
+*   Always provide a friendly and helpful \`explanation\`.
+*   When creating elements, assign a reasonable default size and position if not specified.
+*   Element IDs are crucial. Refer to elements by their ID. If the user uses a vague description like "the box", use the ID of the most likely target.
+*   Be creative but stick to the user's request.
+*   The origin (0,0) is the top-left of the stage.`;
     
-    Available HTML elements on the stage:
-    ${JSON.stringify(formattedElements)}
+  chat = ai.chats.create({
+      model: 'gemini-2.5-flash',
+      config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          // The schema helps the model produce valid JSON, but the prompt is the primary driver of the logic.
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+                response_type: { type: Type.STRING },
+                explanation: { type: Type.STRING },
+                new_elements: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+                modified_elements: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+                animation_steps: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+            }
+          }
+      }
+  });
+}
 
-    User's animation instruction:
-    "${instruction}"
+export interface AIResponse {
+    response_type: 'element_creation' | 'element_modification' | 'animation' | 'clarification' | 'error';
+    explanation: string;
+    new_elements?: StageElement[];
+    modified_elements?: { id: string, props: Partial<StageElement> }[];
+    animation_steps?: AnimationStep[];
+    error_message?: string;
+}
 
-    Based on the instruction, generate a valid JSON array of objects representing the GSAP timeline steps. Each object in the array must conform to the following schema.
-    The 'target' property must be a valid CSS selector for an element from the list (e.g., '#element-id').
-    The 'vars' object should contain GSAP animation properties (e.g., x, y, rotation, scale, opacity, duration, ease).
-    The 'position' property is optional and specifies the position in the GSAP timeline (e.g., "+=0.5", "-=1", "<", ">").
 
-    Examples of common properties:
-    - Movement: x, y (for pixels, e.g., x: 100 moves 100px right)
-    - Rotation: rotation (in degrees, e.g., rotation: 360 for a full spin)
-    - Scaling: scale (e.g., scale: 1.5 makes it 50% larger)
-    - Fading: opacity (e.g., opacity: 0 makes it invisible)
-    - Duration: duration (in seconds, e.g., duration: 2)
+export const sendMessageToAI = async (message: string, elements: StageElement[]): Promise<AIResponse> => {
+  if (!chat) {
+    initializeChat();
+  }
+  
+  if (!message.trim()) {
+    throw new Error("Message cannot be empty.");
+  }
 
-    IMPORTANT: Do not include any explanations, comments, or any text outside of the JSON array. Your entire response must be only the JSON array.
-  `;
+  const prompt = `User message: "${message}"\n\nCurrent elements on stage:\n${JSON.stringify(elements, null, 2)}`;
 
   try {
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        target: {
-                            type: Type.STRING,
-                            description: 'The CSS selector for the element to animate.'
-                        },
-                        vars: {
-                            type: Type.OBJECT,
-                            description: 'A GSAP vars object containing properties to animate.',
-                            // FIX: Removed non-standard 'nullable' property. Properties are optional by default when not in a 'required' array.
-                            properties: {
-                                x: { type: Type.NUMBER },
-                                y: { type: Type.NUMBER },
-                                rotation: { type: Type.NUMBER },
-                                scale: { type: Type.NUMBER },
-                                opacity: { type: Type.NUMBER },
-                                duration: { type: Type.NUMBER },
-                                ease: { type: Type.STRING },
-                            }
-                        },
-                        position: {
-                            type: Type.STRING,
-                            description: 'Optional. The position parameter for the GSAP timeline.',
-                        }
-                    },
-                    required: ['target', 'vars']
-                }
-            }
-        }
-    });
-
+    const response = await chat!.sendMessage({ message: prompt });
     const jsonText = response.text.trim();
-    const parsedResponse = JSON.parse(jsonText);
-    
-    if (!Array.isArray(parsedResponse)) {
-      throw new Error("AI response is not a valid array.");
+    // A simple validation to ensure it's JSON before parsing
+    if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+        throw new Error('AI did not return valid JSON.');
     }
-    
-    return parsedResponse as AnimationStep[];
-
+    const parsedResponse = JSON.parse(jsonText);
+    return parsedResponse as AIResponse;
   } catch (error) {
-    console.error("Error generating animation steps:", error);
-    throw new Error("Failed to generate animation from AI. Please check the console for details.");
+    console.error("Error communicating with AI:", error);
+    // Let's try to gracefully inform the user.
+    return {
+        response_type: 'error',
+        explanation: "Sorry, I encountered an error trying to process that. Maybe try phrasing it differently?",
+        error_message: error instanceof Error ? error.message : "An unknown error occurred."
+    };
   }
 };
