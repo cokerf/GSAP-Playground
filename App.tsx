@@ -29,7 +29,7 @@ const LeftPanel = ({ elements, setElements, selectedElementId, setSelectedElemen
 
 const CanvasSettings = ({ settings, setSettings }) => {
     const presets = {
-        '16:9': { width: 1280, height: 720 }, '4:3': { width: 1024, height: 768 }, '1:1': { width: 800, height: 800 }, 'Mobile': { width: 375, height: 667 }
+        '16:9': { width: 1920, height: 1080 }, '4:3': { width: 1024, height: 768 }, '1:1': { width: 800, height: 800 }, 'Mobile': { width: 375, height: 667 }
     };
     return (
         <div className="flex flex-col gap-3 p-3 bg-gray-900/50 rounded-md">
@@ -297,17 +297,14 @@ ${gsapCode.split('\n').map(line => '      ' + line).join('\n')}
 // == Main App Component ==
 
 export default function App() {
-  const [elements, setElements] = useState<StageElement[]>([
-    { id: 'text-1', type: 'text', text: 'Animate Me!', color: '#111827', fontSize: 48, fontWeight: '700', x: 50, y: 180, width: 'auto', height: 'auto', rotation: 0, opacity: 1 },
-    { id: 'image-1', type: 'image', src: 'https://images.unsplash.com/photo-1633423483307-ce26b641225a?w=400', x: 450, y: 125, width: '250px', height: '200px', rotation: 0, opacity: 1 },
-  ]);
+  const [elements, setElements] = useState<StageElement[]>([]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [animationSteps, setAnimationSteps] = useState<AnimationStep[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-      { role: 'model', text: "Ready to animate? Just tell me what to do. Try something like: 'Make the image spin' or 'Add a blue circle'." }
+      { role: 'model', text: "Ready to animate? Just tell me what to do. Try something like: 'Add a blue circle and make it spin'." }
   ]);
-  const [canvasSettings, setCanvasSettings] = useState({ width: 800, height: 450, backgroundColor: '#ffffff' });
+  const [canvasSettings, setCanvasSettings] = useState({ width: 1920, height: 1080, backgroundColor: '#ffffff' });
 
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -380,7 +377,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col p-4 font-sans">
         <header className="flex items-center justify-between pb-4 border-b border-gray-700">
-            <h1 className="text-2xl font-bold tracking-wider">GSAP Playground</h1>
+            <h1 className="text-2xl font-bold tracking-wider">GSAP-GPT</h1>
         </header>
 
         <div className="flex-grow grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4 min-h-0">

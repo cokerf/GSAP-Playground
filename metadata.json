@@ -1,5 +1,5 @@
 {
-  "name": "GSAP Playground",
+  "name": "GSAP-GPT",
   "description": "An AI-powered playground to generate GSAP animations from natural language. Chat with the AI to add elements like text, images, and videos to a canvas, describe the animation, and export embeddable code for Webflow or Framer.",
   "requestFramePermissions": []
 }
