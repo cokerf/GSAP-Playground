@@ -1,22 +1,21 @@
 import React from 'react';
 
 export const PlayIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M8 5v14l11-7z" />
   </svg>
 );
 
 export const PauseIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
   </svg>
 );
 
 export const ReplayIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 12A8 8 0 1013 5.23" />
-  </svg>
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+    </svg>
 );
 
 export const CopyIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
@@ -51,7 +50,7 @@ export const CircleIcon = ({ className = 'w-6 h-6' }: { className?: string }) =>
 
 export const TextIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7V6a2 2 0 012-2h12a2 2 0 012 2v1M4 7h16M4 7L4 20M12 7v13m-4-13L8 20m8-13l-4 13" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m-6-16h12" />
     </svg>
 );
 

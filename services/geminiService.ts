@@ -5,10 +5,7 @@ let chat: Chat | null = null;
 
 const initializeChat = () => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  // FIX: Reworded the system instruction to avoid potential parsing issues with backticks and colons in the template literal.
-  // The original prompt string was likely causing "Cannot find name" errors due to a misinterpretation by a parser/linter.
-  // This new prompt is clearer for the model and safer for tooling.
-  const systemInstruction = `You are "Sparky", an expert GSAP and web animation assistant. Your goal is to help users create animations by interpreting their natural language commands. You will control a scene with elements and a GSAP timeline. You MUST respond in a specific JSON format. Do not add any text outside the JSON object.
+  const systemInstruction = `You are an expert GSAP and web animation assistant. Your goal is to help users create animations by interpreting their natural language commands. You will control a scene with elements and a GSAP timeline. You MUST respond in a specific JSON format. Do not add any text outside the JSON object.
 
 The user will provide a message and the current list of elements on the stage. Based on this, you will decide on an action.
 
@@ -34,7 +31,7 @@ The user will provide a message and the current list of elements on the stage. B
     - The \`explanation\` will be your answer or clarifying question.
 
 **Element Schema (\`StageElement\`):**
-\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: number, height: number, rotation: number, opacity: number, backgroundColor?: string, text?: string, color?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
+\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: string (e.g. "100px", "50%"), height: string (e.g. "100px", "50%"), rotation: number, opacity: number, backgroundColor?: string, text?: string, color?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
 
 **Animation Schema (\`AnimationStep\`):**
 \`target: string (CSS selector), vars: object, position?: string\`
@@ -51,15 +48,88 @@ The user will provide a message and the current list of elements on the stage. B
       config: {
           systemInstruction,
           responseMimeType: "application/json",
-          // The schema helps the model produce valid JSON, but the prompt is the primary driver of the logic.
           responseSchema: {
             type: Type.OBJECT,
             properties: {
                 response_type: { type: Type.STRING },
                 explanation: { type: Type.STRING },
-                new_elements: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-                modified_elements: { type: Type.ARRAY, items: { type: Type.OBJECT } },
-                animation_steps: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+                new_elements: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            type: { type: Type.STRING },
+                            x: { type: Type.NUMBER },
+                            y: { type: Type.NUMBER },
+                            width: { type: Type.STRING },
+                            height: { type: Type.STRING },
+                            rotation: { type: Type.NUMBER },
+                            opacity: { type: Type.NUMBER },
+                            backgroundColor: { type: Type.STRING },
+                            text: { type: Type.STRING },
+                            color: { type: Type.STRING },
+                            fontSize: { type: Type.NUMBER },
+                            fontWeight: { type: Type.STRING },
+                            src: { type: Type.STRING },
+                            autoplay: { type: Type.BOOLEAN },
+                            loop: { type: Type.BOOLEAN },
+                            muted: { type: Type.BOOLEAN },
+                        }
+                    }
+                },
+                modified_elements: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            props: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    x: { type: Type.NUMBER },
+                                    y: { type: Type.NUMBER },
+                                    width: { type: Type.STRING },
+                                    height: { type: Type.STRING },
+                                    rotation: { type: Type.NUMBER },
+                                    opacity: { type: Type.NUMBER },
+                                    backgroundColor: { type: Type.STRING },
+                                    text: { type: Type.STRING },
+                                    color: { type: Type.STRING },
+                                    fontSize: { type: Type.NUMBER },
+                                    fontWeight: { type: Type.STRING },
+                                    src: { type: Type.STRING },
+                                    autoplay: { type: Type.BOOLEAN },
+                                    loop: { type: Type.BOOLEAN },
+                                    muted: { type: Type.BOOLEAN },
+                                }
+                            }
+                        }
+                    }
+                },
+                animation_steps: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            target: { type: Type.STRING },
+                            vars: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    x: { type: Type.NUMBER },
+                                    y: { type: Type.NUMBER },
+                                    rotation: { type: Type.NUMBER },
+                                    scale: { type: Type.NUMBER },
+                                    opacity: { type: Type.NUMBER },
+                                    duration: { type: Type.NUMBER },
+                                    backgroundColor: { type: Type.STRING },
+                                    color: { type: Type.STRING },
+                                }
+                            },
+                            position: { type: Type.STRING }
+                        }
+                    }
+                },
             }
           }
       }

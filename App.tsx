@@ -29,7 +29,7 @@ const LeftPanel = ({ elements, setElements, selectedElementId, setSelectedElemen
 
 const CanvasSettings = ({ settings, setSettings }) => {
     const presets = {
-        '16:9': { w: 1280, h: 720 }, '4:3': { w: 1024, h: 768 }, '1:1': { w: 800, h: 800 }, 'Mobile': { w: 375, h: 667 }
+        '16:9': { width: 1280, height: 720 }, '4:3': { width: 1024, height: 768 }, '1:1': { width: 800, height: 800 }, 'Mobile': { width: 375, height: 667 }
     };
     return (
         <div className="flex flex-col gap-3 p-3 bg-gray-900/50 rounded-md">
@@ -52,12 +52,12 @@ const CanvasSettings = ({ settings, setSettings }) => {
 const ElementManager = ({ elements, setElements, selectedElementId, setSelectedElementId }) => {
     const addElement = (type: ElementType) => {
         const newElement: StageElement = {
-            id: `${type}-${Date.now()}`, type, x: 50, y: 50, width: 100, height: 100, rotation: 0, opacity: 1,
+            id: `${type}-${Date.now()}`, type, x: 50, y: 50, width: '100px', height: '100px', rotation: 0, opacity: 1,
             ...(type === 'box' && { backgroundColor: '#3b82f6' }),
-            ...(type === 'circle' && { backgroundColor: '#ec4899', width: 80, height: 80 }),
-            ...(type === 'text' && { text: 'Hello World', color: '#ffffff', fontSize: 24, fontWeight: 'bold', width: 200, height: 50 }),
-            ...(type === 'image' && { src: 'https://images.unsplash.com/photo-1599420186946-7b6fb4e297f0?w=200', width: 150, height: 150 }),
-            ...(type === 'video' && { src: 'https://assets.mixkit.co/videos/preview/mixkit-waving-flag-of-the-united-states-345-small.mp4', autoplay: true, loop: true, muted: true, width: 200, height: 120 }),
+            ...(type === 'circle' && { backgroundColor: '#ec4899', width: '80px', height: '80px' }),
+            ...(type === 'text' && { text: 'Hello World', color: '#1f2937', fontSize: 24, fontWeight: 'bold', width: 'auto', height: 'auto' }),
+            ...(type === 'image' && { src: 'https://images.unsplash.com/photo-1599420186946-7b6fb4e297f0?w=200', width: '150px', height: '150px' }),
+            ...(type === 'video' && { src: 'https://assets.mixkit.co/videos/preview/mixkit-waving-flag-of-the-united-states-345-small.mp4', autoplay: true, loop: true, muted: true, width: '200px', height: '120px' }),
         };
         setElements(prev => [...prev, newElement]);
         setSelectedElementId(newElement.id);
@@ -98,6 +98,8 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
                     <h4 className="font-bold">Properties: <span className="font-mono text-cyan-400">{selectedElement.id}</span></h4>
                     <div className="grid grid-cols-2 gap-2">
                         <span>ID:</span><input type="text" value={selectedElement.id} onChange={(e) => updateElement(selectedElement.id, {id: e.target.value})} className="bg-gray-800 rounded p-1 font-mono w-full"/>
+                        <span>Width:</span><input type="text" value={selectedElement.width} onChange={e => updateElement(selectedElement.id, {width: e.target.value})} className="bg-gray-800 rounded p-1 w-full"/>
+                        <span>Height:</span><input type="text" value={selectedElement.height} onChange={e => updateElement(selectedElement.id, {height: e.target.value})} className="bg-gray-800 rounded p-1 w-full"/>
                         {selectedElement.type === 'text' && <>
                             <span>Text:</span><input type="text" value={selectedElement.text} onChange={e => updateElement(selectedElement.id, {text: e.target.value})} className="bg-gray-800 rounded p-1 w-full"/>
                             <span>Color:</span><input type="color" value={selectedElement.color} onChange={e => updateElement(selectedElement.id, {color: e.target.value})} className="bg-transparent rounded p-0 w-full h-7"/>
@@ -127,7 +129,7 @@ const Stage = ({ elements, selectedElementId, onSelectElement, settings }) => (
             {elements.map(el => {
                 const style: React.CSSProperties = {
                     position: 'absolute',
-                    left: `${el.x}px`, top: `${el.y}px`, width: `${el.width}px`, height: `${el.height}px`,
+                    left: `${el.x}px`, top: `${el.y}px`, width: el.width, height: el.height,
                     opacity: el.opacity, transform: `rotate(${el.rotation}deg)`,
                     border: `2px solid ${selectedElementId === el.id ? '#22d3ee' : 'transparent'}`,
                     transition: 'border-color 0.2s', cursor: 'pointer',
@@ -200,7 +202,7 @@ const ChatInterface = ({ history, onSendMessage, isLoading }) => {
                     className="w-full p-2 bg-gray-900 border border-gray-700 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                     disabled={isLoading}
                 />
-                <button onClick={handleSend} disabled={isLoading} className="p-2 bg-cyan-600 rounded-md hover:bg-cyan-500 disabled:bg-gray-600"><SendIcon className="w-5 h-5"/></button>
+                <button onClick={handleSend} disabled={isLoading} className="p-2 bg-cyan-600 rounded-md hover:bg-cyan-500 disabled:bg-gray-600"><SendIcon className="w-5 h-5 rotate-90"/></button>
             </div>
         </div>
     );
@@ -213,7 +215,7 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
 
     const generateExportCode = useCallback(() => {
         const elementHTML = elements.map(el => {
-            const baseStyle = `position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}px; height: ${el.height}px; opacity: ${el.opacity}; transform: rotate(${el.rotation}deg);`;
+            const baseStyle = `position: absolute; left: ${el.x}px; top: ${el.y}px; width: ${el.width}; height: ${el.height}; opacity: ${el.opacity}; transform: rotate(${el.rotation}deg);`;
             switch(el.type) {
                 case 'box': return `    <div id="${el.id}" style="${baseStyle} background-color: ${el.backgroundColor};"></div>`;
                 case 'circle': return `    <div id="${el.id}" style="${baseStyle} background-color: ${el.backgroundColor}; border-radius: 50%;"></div>`;
@@ -296,16 +298,16 @@ ${gsapCode.split('\n').map(line => '      ' + line).join('\n')}
 
 export default function App() {
   const [elements, setElements] = useState<StageElement[]>([
-    { id: 'box-1', type: 'box', backgroundColor: '#3b82f6', x: 50, y: 150, width: 100, height: 100, rotation: 0, opacity: 1 },
-    { id: 'circle-1', type: 'circle', backgroundColor: '#ec4899', x: 450, y: 150, width: 80, height: 80, rotation: 0, opacity: 1 },
+    { id: 'text-1', type: 'text', text: 'Animate Me!', color: '#111827', fontSize: 48, fontWeight: '700', x: 50, y: 180, width: 'auto', height: 'auto', rotation: 0, opacity: 1 },
+    { id: 'image-1', type: 'image', src: 'https://images.unsplash.com/photo-1633423483307-ce26b641225a?w=400', x: 450, y: 125, width: '250px', height: '200px', rotation: 0, opacity: 1 },
   ]);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [animationSteps, setAnimationSteps] = useState<AnimationStep[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-      { role: 'model', text: "Hello! I'm Sparky. Tell me what you want to create. For example, try 'make the blue box spin and move right'." }
+      { role: 'model', text: "Ready to animate? Just tell me what to do. Try something like: 'Make the image spin' or 'Add a blue circle'." }
   ]);
-  const [canvasSettings, setCanvasSettings] = useState({ width: 800, height: 450, backgroundColor: '#1f2937' });
+  const [canvasSettings, setCanvasSettings] = useState({ width: 800, height: 450, backgroundColor: '#ffffff' });
 
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);

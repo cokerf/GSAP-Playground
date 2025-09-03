@@ -5,8 +5,8 @@ export interface StageElement {
   type: ElementType;
   x: number;
   y: number;
-  width: number;
-  height: number;
+  width: string;
+  height: string;
   rotation: number;
   opacity: number;
   // Box/Circle props
