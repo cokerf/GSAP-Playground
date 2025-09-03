@@ -9,11 +9,11 @@ export interface StageElement {
   height: string;
   rotation: number;
   opacity: number;
-  // Box/Circle props
+  // Generic props
   backgroundColor?: string;
+  color?: string;
   // Text props
   text?: string;
-  color?: string;
   fontSize?: number;
   fontWeight?: string;
   // Image/Video props

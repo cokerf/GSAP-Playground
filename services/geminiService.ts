@@ -14,12 +14,12 @@ The user will provide a message and the current list of elements on the stage. B
 1.  **Create Elements**: If the user asks to add something (e.g., "add a red square", "put some text that says hello").
     - The \`response_type\` will be "element_creation".
     - The \`explanation\` will be a confirmation message, e.g., "Okay, I've added the new elements to the stage for you.".
-    - The \`new_elements\` property will be an array of one or more \`StageElement\` objects to be added. Ensure new elements have a unique \`id\` (e.g., \`type-timestamp\`). Default size is 100x100. Default position is x:50, y:50.
+    - The \`new_elements\` property will be an array of one or more \`StageElement\` objects to be added. Ensure new elements have a unique \`id\` (e.g., \`type-timestamp\`). Default size is 100x100. Default position is x:50, y:50. For image/video, you don't need to set a 'src', it will be a placeholder that the user can fill.
 
-2.  **Modify Elements**: If the user asks to change a property of an existing element (e.g., "make box-1 blue", "change the text").
+2.  **Modify Elements**: If the user asks to change a property of an existing element (e.g., "make box-1 blue", "change the text", "move the circle to x 200").
     - The \`response_type\` will be "element_modification".
     - The \`explanation\` will be a confirmation, e.g., "I've updated the properties of the element(s).".
-    - The \`modified_elements\` property will be an array of objects, each with an \`id\` and a \`props\` object containing the properties to change.
+    - The \`modified_elements\` property will be an array of objects, each with an \`id\` and a \`props\` object containing the properties to change. This includes changing the placeholder colors for images/videos.
 
 3.  **Generate Animation**: If the user describes a motion or animation (e.g., "make the circle spin", "move the box to the right").
     - The \`response_type\` will be "animation".
@@ -31,16 +31,15 @@ The user will provide a message and the current list of elements on the stage. B
     - The \`explanation\` will be your answer or clarifying question.
 
 **Element Schema (\`StageElement\`):**
-\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: string (e.g. "100px", "50%"), height: string (e.g. "100px", "50%"), rotation: number, opacity: number, backgroundColor?: string, text?: string, color?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
+\`id: string, type: 'box' | 'circle' | 'text' | 'image' | 'video', x: number, y: number, width: string, height: string, rotation: number, opacity: number, backgroundColor?: string, color?: string, text?: string, fontSize?: number, fontWeight?: string, src?: string, autoplay?: boolean, loop?: boolean, muted?: boolean\`
+- Note: For 'image' and 'video', \`backgroundColor\` is the placeholder's frame color and \`color\` is the placeholder's icon color.
 
 **Animation Schema (\`AnimationStep\`):**
 \`target: string (CSS selector), vars: object, position?: string\`
 
 **Rules:**
 *   Always provide a friendly and helpful \`explanation\`.
-*   When creating elements, assign a reasonable default size and position if not specified.
 *   Element IDs are crucial. Refer to elements by their ID. If the user uses a vague description like "the box", use the ID of the most likely target.
-*   Be creative but stick to the user's request.
 *   The origin (0,0) is the top-left of the stage.`;
     
   chat = ai.chats.create({
@@ -154,13 +153,20 @@ export const sendMessageToAI = async (message: string, elements: StageElement[])
   if (!message.trim()) {
     throw new Error("Message cannot be empty.");
   }
+  
+  // Sanitize elements to avoid sending large base64 strings
+  const sanitizedElements = elements.map(el => {
+    if (el.src && el.src.startsWith('data:')) {
+        return { ...el, src: 'data:...' }; // Truncate base64 data
+    }
+    return el;
+  });
 
-  const prompt = `User message: "${message}"\n\nCurrent elements on stage:\n${JSON.stringify(elements, null, 2)}`;
+  const prompt = `User message: "${message}"\n\nCurrent elements on stage:\n${JSON.stringify(sanitizedElements, null, 2)}`;
 
   try {
     const response = await chat!.sendMessage({ message: prompt });
     const jsonText = response.text.trim();
-    // A simple validation to ensure it's JSON before parsing
     if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
         throw new Error('AI did not return valid JSON.');
     }
@@ -168,7 +174,6 @@ export const sendMessageToAI = async (message: string, elements: StageElement[])
     return parsedResponse as AIResponse;
   } catch (error) {
     console.error("Error communicating with AI:", error);
-    // Let's try to gracefully inform the user.
     return {
         response_type: 'error',
         explanation: "Sorry, I encountered an error trying to process that. Maybe try phrasing it differently?",
