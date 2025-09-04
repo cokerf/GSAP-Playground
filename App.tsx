@@ -5,7 +5,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { TextPlugin } from "gsap/TextPlugin";
 import type { StageElement, AnimationStep, ChatMessage, ElementType } from './types';
 import { sendMessageToAI, AIResponse } from './services/geminiService';
-import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon, SettingsIcon, ChatBubbleIcon, CodeBracketIcon, ClearIcon, DragHandleIcon, WandIcon } from './components/icons';
+import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon, SettingsIcon, ChatBubbleIcon, CodeBracketIcon, ClearIcon, DragHandleIcon, WandIcon, SlidersIcon } from './components/icons';
 
 gsap.registerPlugin(Draggable, ScrollTrigger, TextPlugin);
 
@@ -45,19 +45,21 @@ const formatGSAPCode = (steps: AnimationStep[]): string => {
 
 // == Child Components ==
 
-const LeftPanel = ({ isCollapsed, elements, setElements, selectedElementId, setSelectedElementId, canvasSettings, setCanvasSettings, onIdChange, onApplyPreset, isScrollPreview, onScrollPreviewToggle }) => (
+const LeftPanel = ({ isCollapsed, elements, setElements, selectedElementId, setSelectedElementId, canvasSettings, setCanvasSettings, onIdChange, onApplyPreset, isScrollPreview, onScrollPreviewToggle, selectedStepIndex, animationSteps, onUpdateAnimationStep }) => (
     <div className={`bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col gap-4 overflow-y-auto transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16 p-2' : 'w-80 p-4'}`}>
         {isCollapsed ? (
             <div className="flex flex-col items-center gap-4">
                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><SettingsIcon className="w-6 h-6"/></div>
                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><BoxIcon className="w-6 h-6"/></div>
                  <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><WandIcon className="w-6 h-6"/></div>
+                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><SlidersIcon className="w-6 h-6"/></div>
             </div>
         ) : (
             <>
                 <CanvasSettings settings={canvasSettings} setSettings={setCanvasSettings} />
                 <ElementManager elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} onIdChange={onIdChange} />
                 <PresetsPanel selectedElement={elements.find(e => e.id === selectedElementId)} onApplyPreset={onApplyPreset} isScrollPreview={isScrollPreview} onScrollPreviewToggle={onScrollPreviewToggle} />
+                {selectedStepIndex !== null && <EffectsControlPanel step={animationSteps[selectedStepIndex]} stepIndex={selectedStepIndex} onUpdate={onUpdateAnimationStep} />}
             </>
         )}
     </div>
@@ -137,7 +139,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
     const selectedElement = elements.find(el => el.id === selectedElementId);
 
     return (
-        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md flex-grow">
+        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md">
             <h3 className="font-bold text-black dark:text-white">Elements</h3>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
                 <button onClick={() => addElement('box')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><BoxIcon className="w-5 h-5 mr-1" /> Box</button>
@@ -146,7 +148,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
                 <button onClick={() => addElement('image')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><ImageIcon className="w-5 h-5 mr-1" /> Img</button>
                 <button onClick={() => addElement('video')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><VideoIcon className="w-5 h-5 mr-1" /> Vid</button>
             </div>
-            <div className="flex-grow overflow-y-auto space-y-2 pr-2 min-h-[100px]">
+            <div className="overflow-y-auto space-y-2 pr-2 min-h-[100px] max-h-[150px]">
                 {elements.map((el, index) => (
                     <div 
                         key={el.id} 
@@ -160,7 +162,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
                     >
                         <div className="flex items-center gap-2">
                            <span className="cursor-grab text-gray-500 dark:text-gray-400"><DragHandleIcon /></span>
-                           <span className="font-mono">{el.id}</span>
+                           <span className="font-mono truncate">{el.id}</span>
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); removeElement(el.id);}} className="text-gray-500 dark:text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                     </div>
@@ -168,7 +170,7 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
             </div>
             {selectedElement && (
                 <div className="border-t border-gray-300 dark:border-gray-700 pt-3 space-y-2 text-sm">
-                    <h4 className="font-bold">Properties: <span className="font-mono text-black/60 dark:text-white/60">{selectedElement.id}</span></h4>
+                    <h4 className="font-bold">Properties</h4>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                         <span className="self-center">ID:</span><input type="text" value={selectedElement.id} onChange={e => onIdChange(selectedElement.id, e.target.value)} className="font-mono bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                         <span className="self-center">X:</span><input type="number" value={selectedElement.x} onChange={e => updateElement(selectedElement.id, {x: parseInt(e.target.value)})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
@@ -202,13 +204,15 @@ const PresetsPanel = ({ selectedElement, onApplyPreset, isScrollPreview, onScrol
     if (!selectedElement) return null;
 
     const textPresets = [
-        { name: 'Typewriter', step: { target: `#${selectedElement.id}`, vars: { text: { value: selectedElement.text }, duration: 2, ease: 'none' } } },
+        { name: 'Typewriter', step: { target: `#${selectedElement.id}`, vars: { text: { value: selectedElement.text || '' }, duration: 2, ease: 'none' } } },
+        { name: 'Slide In by Char', step: { target: `#${selectedElement.id}`, vars: { y: -30, autoAlpha: 0, stagger: 0.05, ease: 'back.out' } } },
         { name: 'Stagger Fade In', step: { target: `#${selectedElement.id}`, vars: { autoAlpha: 1, y: 0, stagger: 0.1, duration: 0.5 }, position: '+=0.5' } }
     ];
 
     const scrollPresets = [
         { name: 'Fade In on Scroll', step: { target: `#${selectedElement.id}`, vars: { autoAlpha: 1, y: 0, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top 80%', toggleActions: 'play none none none' } } } },
-        { name: 'Slide In on Scroll', step: { target: `#${selectedElement.id}`, vars: { x: 0, autoAlpha: 1, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top 80%', toggleActions: 'play none none none' } } } }
+        { name: 'Slide In on Scroll', step: { target: `#${selectedElement.id}`, vars: { x: 0, autoAlpha: 1, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top 80%', toggleActions: 'play none none none' } } } },
+        { name: 'Pulse on Scroll', step: { target: `#${selectedElement.id}`, vars: { scale: 1.1, repeat: -1, yoyo: true, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top center', end: 'bottom center', toggleActions: 'play pause resume pause' } } } }
     ];
     
     return (
@@ -236,6 +240,72 @@ const PresetsPanel = ({ selectedElement, onApplyPreset, isScrollPreview, onScrol
         </div>
     );
 };
+
+const EffectsControlPanel = ({ step, stepIndex, onUpdate }) => {
+    if (!step) return null;
+
+    const eases = ["none", "power1.in", "power1.out", "power1.inOut", "power2.in", "power2.out", "power2.inOut", "power3.in", "power3.out", "power3.inOut", "power4.in", "power4.out", "power4.inOut", "back.in", "back.out", "back.inOut", "bounce.in", "bounce.out", "bounce.inOut", "circ.in", "circ.out", "circ.inOut", "elastic.in", "elastic.out", "elastic.inOut", "expo.in", "expo.out", "expo.inOut", "sine.in", "sine.out", "sine.inOut"];
+
+    const updateVar = (key, value) => {
+        const newVars = { ...step.vars, [key]: value };
+        onUpdate(stepIndex, { ...step, vars: newVars });
+    };
+
+    return (
+        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md">
+            <h3 className="font-bold text-black dark:text-white">Effects Controls</h3>
+            <div className="text-sm space-y-3">
+                <div>
+                    <label className="block text-xs font-medium">Duration</label>
+                    <input type="range" min="0.1" max="10" step="0.1" value={step.vars.duration || 1} onChange={e => updateVar('duration', parseFloat(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+                    <span className="text-xs">{step.vars.duration || 1}s</span>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium">Rotation</label>
+                    <input type="range" min="-360" max="360" step="1" value={step.vars.rotation || 0} onChange={e => updateVar('rotation', parseInt(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+                    <span className="text-xs">{step.vars.rotation || 0}°</span>
+                </div>
+                 <div>
+                    <label className="block text-xs font-medium">Scale</label>
+                    <input type="range" min="0" max="5" step="0.1" value={step.vars.scale || 1} onChange={e => updateVar('scale', parseFloat(e.target.value))} className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" />
+                    <span className="text-xs">{step.vars.scale || 1}</span>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium">Ease</label>
+                    <div className="flex gap-2 items-center">
+                        <select value={step.vars.ease || "power1.out"} onChange={e => updateVar('ease', e.target.value)} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full">
+                            {eases.map(e => <option key={e} value={e}>{e}</option>)}
+                        </select>
+                        <EaseVisualizer ease={step.vars.ease || "power1.out"} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const EaseVisualizer = ({ ease, size = 32 }) => {
+    const path = React.useMemo(() => {
+        try {
+            const easeFunc = gsap.parseEase(ease);
+            if (!easeFunc) return "M0,32 L32,0";
+            let d = "M0," + size;
+            for (let i = 1; i < size; i++) {
+                d += " L" + i + "," + (size - easeFunc(i / size) * size);
+            }
+            return d;
+        } catch (e) {
+            return "M0,32 L32,0";
+        }
+    }, [ease, size]);
+
+    return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="bg-gray-200 dark:bg-gray-800 rounded">
+            <path d={path} stroke="currentColor" strokeWidth="2" fill="none"/>
+        </svg>
+    );
+};
+
 
 const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, settings, isScrollPreview }) => {
     const stageContainerRef = useRef<HTMLDivElement>(null);
@@ -265,7 +335,6 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
             const target = document.getElementById(el.id);
             if (target && !draggableInstances.current[el.id]) {
                 draggableInstances.current[el.id] = new Draggable(target, {
-                    bounds: "#stage-parent",
                     onPress() {
                         onSelectElement(el.id);
                         gsap.set(target, { zIndex: 1 + elements.length });
@@ -389,6 +458,7 @@ const ChatInterface = ({ history, onSendMessage, isLoading }) => {
                     </div>
                 ))}
                  {isLoading && <div className="flex justify-start"><div className="p-3 rounded-lg bg-gray-300 dark:bg-gray-700"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800 dark:border-white"></div></div></div>}
+                 <div ref={messagesEndRef} />
             </div>
             <div className="mt-4 flex items-center gap-2">
                 <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="e.g., Make the blue box spin" className="w-full p-2 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md focus:ring-2 focus:ring-black dark:focus:ring-white focus:outline-none" disabled={isLoading} />
@@ -456,7 +526,7 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
     );
 };
 
-const TimelinePanel = ({ steps, onPlayPause, onRestart, onClear, isPlaying }) => (
+const TimelinePanel = ({ steps, onPlayPause, onRestart, onClear, isPlaying, selectedStepIndex, onSelectStep }) => (
     <div className="bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col p-3 gap-2">
         <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm">Animation Timeline</h3>
@@ -472,9 +542,9 @@ const TimelinePanel = ({ steps, onPlayPause, onRestart, onClear, isPlaying }) =>
             ) : (
                 <ol className="text-xs font-mono space-y-1">
                     {steps.map((step, i) => (
-                        <li key={i} className="flex items-start gap-2">
+                        <li key={i} onClick={() => onSelectStep(i)} className={`p-1 rounded-md cursor-pointer flex items-start gap-2 ${selectedStepIndex === i ? 'bg-black/20 dark:bg-white/20' : 'hover:bg-black/10 dark:hover:bg-white/10'}`}>
                             <span className="text-gray-500">{i + 1}.</span>
-                            <div className="flex-grow">
+                            <div className="flex-grow truncate">
                                 <span className="text-purple-600 dark:text-purple-400">to</span>(
                                 <span className="text-red-600 dark:text-red-400">"{step.target}"</span>, 
                                 <span className="text-blue-600 dark:text-blue-400">{JSON.stringify(step.vars)}</span>
@@ -503,6 +573,7 @@ export default function App() {
   const [isLeftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [isRightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isScrollPreview, setIsScrollPreview] = useState(false);
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
 
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -519,7 +590,7 @@ export default function App() {
     elements.forEach(el => {
         gsap.set(`#${el.id}`, {
             x: el.x, y: el.y, width: el.width, height: el.height,
-            rotation: el.rotation, opacity: el.opacity
+            rotation: el.rotation, opacity: el.opacity, clearProps: "all"
         });
     });
     ScrollTrigger.getAll().forEach(st => st.kill());
@@ -555,6 +626,7 @@ export default function App() {
         
         if (aiResponse.response_type === 'animation' && Array.isArray(aiResponse.animation_steps) && aiResponse.animation_steps.length > 0) {
             setAnimationSteps(prev => [...prev, ...aiResponse.animation_steps!]);
+            setSelectedStepIndex(null); // Deselect any step after adding new ones
         }
     } catch (error) {
         console.error("Error processing AI response:", error);
@@ -568,6 +640,7 @@ export default function App() {
     // Kill previous instances
     timelineRef.current?.kill();
     ScrollTrigger.getAll().forEach(st => st.kill());
+    resetElementsToInitialState();
 
     const timelineAnims = animationSteps.filter(step => !step.vars.scrollTrigger);
     const scrollAnims = animationSteps.filter(step => step.vars.scrollTrigger);
@@ -601,7 +674,7 @@ export default function App() {
         timelineRef.current?.kill();
         ScrollTrigger.getAll().forEach(st => st.kill());
     };
-}, [animationSteps, elements, isScrollPreview]);
+}, [animationSteps, elements, isScrollPreview, resetElementsToInitialState]);
 
 
   const updateElementPosition = useCallback((id: string, newProps: Partial<StageElement>) => {
@@ -630,12 +703,18 @@ export default function App() {
   const handleClearAnimation = () => {
     resetElementsToInitialState();
     setAnimationSteps([]);
+    setSelectedStepIndex(null);
   }
 
   const handleApplyPreset = (step: AnimationStep) => {
     resetElementsToInitialState();
     setAnimationSteps(prev => [...prev, step]);
   };
+
+  const handleUpdateAnimationStep = (index: number, updatedStep: AnimationStep) => {
+      setAnimationSteps(prev => prev.map((step, i) => i === index ? updatedStep : step));
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col p-4 font-sans">
@@ -651,15 +730,30 @@ export default function App() {
 
         <main className="flex-grow flex gap-4 mt-4 min-h-0">
             <div className="relative h-full flex items-stretch">
-                <LeftPanel isCollapsed={isLeftPanelCollapsed} elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} canvasSettings={canvasSettings} setCanvasSettings={setCanvasSettings} onIdChange={handleIdChange} onApplyPreset={handleApplyPreset} isScrollPreview={isScrollPreview} onScrollPreviewToggle={setIsScrollPreview} />
+                <LeftPanel 
+                  isCollapsed={isLeftPanelCollapsed} 
+                  elements={elements} 
+                  setElements={setElements} 
+                  selectedElementId={selectedElementId} 
+                  setSelectedElementId={setSelectedElementId} 
+                  canvasSettings={canvasSettings} 
+                  setCanvasSettings={setCanvasSettings} 
+                  onIdChange={handleIdChange} 
+                  onApplyPreset={handleApplyPreset} 
+                  isScrollPreview={isScrollPreview} 
+                  onScrollPreviewToggle={setIsScrollPreview} 
+                  selectedStepIndex={selectedStepIndex}
+                  animationSteps={animationSteps}
+                  onUpdateAnimationStep={handleUpdateAnimationStep}
+                />
                 <button onClick={() => setLeftPanelCollapsed(c => !c)} className="absolute top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" style={{right: '-1.5rem', borderRadius: '0 0.5rem 0.5rem 0'}}>
                     <ChevronRightIcon className={`w-5 h-5 transition-transform ${isLeftPanelCollapsed ? '' : 'rotate-180'}`} />
                 </button>
             </div>
 
             <div className="flex-grow flex flex-col gap-4 min-w-0">
+              <TimelinePanel steps={animationSteps} onPlayPause={handlePlayPause} onRestart={handleRestart} onClear={handleClearAnimation} isPlaying={isPlaying} selectedStepIndex={selectedStepIndex} onSelectStep={setSelectedStepIndex} />
               <Stage elements={elements} selectedElementId={selectedElementId} onSelectElement={setSelectedElementId} onUpdateElement={updateElementPosition} settings={canvasSettings} isScrollPreview={isScrollPreview} />
-              <TimelinePanel steps={animationSteps} onPlayPause={handlePlayPause} onRestart={handleRestart} onClear={handleClearAnimation} isPlaying={isPlaying}/>
             </div>
 
             <div className="relative h-full flex items-stretch">
