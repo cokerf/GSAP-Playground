@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import { Draggable } from "gsap/Draggable";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -311,6 +311,22 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
     const stageContainerRef = useRef<HTMLDivElement>(null);
     const draggableInstances = useRef<{ [id: string]: Draggable }>({});
     const [scale, setScale] = useState(1);
+
+    useLayoutEffect(() => {
+        elements.forEach(el => {
+            const target = document.getElementById(el.id);
+            if (target) {
+                gsap.set(target, {
+                    x: el.x,
+                    y: el.y,
+                    width: el.width,
+                    height: el.height,
+                    rotation: el.rotation,
+                    opacity: el.opacity,
+                });
+            }
+        });
+    }, [elements]);
     
     useEffect(() => {
         const stageParent = stageContainerRef.current;
@@ -374,8 +390,7 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
                 >
                     {elements.map((el, index) => {
                         const style: React.CSSProperties = {
-                            position: 'absolute', left: `${el.x}px`, top: `${el.y}px`, width: el.width, height: el.height,
-                            opacity: el.opacity, transform: `rotate(${el.rotation}deg)`,
+                            position: 'absolute',
                             outline: `2px solid ${selectedElementId === el.id ? (localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#000000') : 'transparent'}`,
                             outlineOffset: '2px',
                             transition: 'outline-color 0.2s', cursor: 'grab', userSelect: 'none',
@@ -590,7 +605,7 @@ export default function App() {
     elements.forEach(el => {
         gsap.set(`#${el.id}`, {
             x: el.x, y: el.y, width: el.width, height: el.height,
-            rotation: el.rotation, opacity: el.opacity, clearProps: "all"
+            rotation: el.rotation, opacity: el.opacity
         });
     });
     ScrollTrigger.getAll().forEach(st => st.kill());
