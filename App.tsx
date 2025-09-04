@@ -1,34 +1,63 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import gsap from 'gsap';
+import { Draggable } from "gsap/Draggable";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { TextPlugin } from "gsap/TextPlugin";
 import type { StageElement, AnimationStep, ChatMessage, ElementType } from './types';
 import { sendMessageToAI, AIResponse } from './services/geminiService';
-import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon, SettingsIcon, ChatBubbleIcon, CodeBracketIcon, ClearIcon } from './components/icons';
+import { PlayIcon, PauseIcon, ReplayIcon, CopyIcon, TrashIcon, BoxIcon, CircleIcon, TextIcon, ImageIcon, VideoIcon, SendIcon, LaptopIcon, TabletIcon, PhoneIcon, SquareIcon, SunIcon, MoonIcon, ChevronLeftIcon, ChevronRightIcon, PhotoIcon, VideoCameraIcon, SettingsIcon, ChatBubbleIcon, CodeBracketIcon, ClearIcon, DragHandleIcon, WandIcon } from './components/icons';
+
+gsap.registerPlugin(Draggable, ScrollTrigger, TextPlugin);
 
 // == Helper Functions ==
 const formatGSAPCode = (steps: AnimationStep[]): string => {
   if (!steps || steps.length === 0) return '// No animation steps generated yet.';
-  const header = `const tl = gsap.timeline();\n\n`;
-  const timelineSteps = steps.map(step => {
-    const varsString = JSON.stringify(step.vars, null, 2).replace(/"([^"]+)":/g, '$1:').replace(/\n/g, '\n  ');
+
+  const hasScrollTrigger = steps.some(step => step.vars.scrollTrigger);
+  const hasTextPlugin = steps.some(step => step.vars.text);
+
+  let header = '';
+  if (hasScrollTrigger || hasTextPlugin) {
+    header += `gsap.registerPlugin(${[hasScrollTrigger && "ScrollTrigger", hasTextPlugin && "TextPlugin"].filter(Boolean).join(', ')});\n\n`;
+  }
+  
+  const timelineSteps = steps.filter(step => !step.vars.scrollTrigger).map(step => {
+    let varsString = JSON.stringify(step.vars, null, 2).replace(/"([^"]+)":/g, '$1:');
     const positionString = step.position ? `, "${step.position}"` : '';
     return `tl.to("${step.target}", ${varsString}${positionString});`;
   }).join('\n');
-  return header + timelineSteps;
+
+  const scrollTriggerSteps = steps.filter(step => step.vars.scrollTrigger).map(step => {
+    let varsString = JSON.stringify(step.vars, null, 2).replace(/"([^"]+)":/g, '$1:');
+    return `gsap.to("${step.target}", ${varsString});`;
+  }).join('\n\n');
+
+  let code = '';
+  if(timelineSteps) {
+    code += `const tl = gsap.timeline();\n${timelineSteps}\n\n`;
+  }
+  if(scrollTriggerSteps) {
+    code += scrollTriggerSteps;
+  }
+  
+  return header + code;
 };
 
 // == Child Components ==
 
-const LeftPanel = ({ isCollapsed, elements, setElements, selectedElementId, setSelectedElementId, canvasSettings, setCanvasSettings }) => (
+const LeftPanel = ({ isCollapsed, elements, setElements, selectedElementId, setSelectedElementId, canvasSettings, setCanvasSettings, onIdChange, onApplyPreset, isScrollPreview, onScrollPreviewToggle }) => (
     <div className={`bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg flex flex-col gap-4 overflow-y-auto transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16 p-2' : 'w-80 p-4'}`}>
         {isCollapsed ? (
             <div className="flex flex-col items-center gap-4">
                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><SettingsIcon className="w-6 h-6"/></div>
                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><BoxIcon className="w-6 h-6"/></div>
+                 <div className="p-2 rounded-md bg-gray-200 dark:bg-gray-700"><WandIcon className="w-6 h-6"/></div>
             </div>
         ) : (
             <>
                 <CanvasSettings settings={canvasSettings} setSettings={setCanvasSettings} />
-                <ElementManager elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} />
+                <ElementManager elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} onIdChange={onIdChange} />
+                <PresetsPanel selectedElement={elements.find(e => e.id === selectedElementId)} onApplyPreset={onApplyPreset} isScrollPreview={isScrollPreview} onScrollPreviewToggle={onScrollPreviewToggle} />
             </>
         )}
     </div>
@@ -56,8 +85,10 @@ const CanvasSettings = ({ settings, setSettings }) => {
     );
 };
 
-const ElementManager = ({ elements, setElements, selectedElementId, setSelectedElementId }) => {
+const ElementManager = ({ elements, setElements, selectedElementId, setSelectedElementId, onIdChange }) => {
     const uploadInputRef = useRef<HTMLInputElement>(null);
+    const dragItem = useRef<number | null>(null);
+    const dragOverItem = useRef<number | null>(null);
 
     const addElement = (type: ElementType) => {
         const newElement: StageElement = {
@@ -79,6 +110,16 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
 
     const updateElement = (id: string, newProps: Partial<StageElement>) => {
         setElements(prev => prev.map(el => el.id === id ? { ...el, ...newProps } : el));
+    };
+
+    const handleSort = () => {
+        if (dragItem.current === null || dragOverItem.current === null) return;
+        const newElements = [...elements];
+        const draggedItemContent = newElements.splice(dragItem.current, 1)[0];
+        newElements.splice(dragOverItem.current, 0, draggedItemContent);
+        dragItem.current = null;
+        dragOverItem.current = null;
+        setElements(newElements);
     };
     
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,18 +147,30 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
                 <button onClick={() => addElement('video')} className="flex items-center justify-center p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors"><VideoIcon className="w-5 h-5 mr-1" /> Vid</button>
             </div>
             <div className="flex-grow overflow-y-auto space-y-2 pr-2 min-h-[100px]">
-                {elements.map(el => (
-                    <div key={el.id} className={`p-2 rounded-md cursor-pointer transition-all text-xs ${selectedElementId === el.id ? 'bg-black/20 dark:bg-white/20 ring-2 ring-black dark:ring-white' : 'bg-gray-300/50 dark:bg-gray-700/50 hover:dark:bg-gray-700 hover:bg-gray-400/50'}`} onClick={() => setSelectedElementId(el.id)}>
-                        <div className="flex items-center justify-between"><span className="font-mono">{el.id}</span>
-                            <button onClick={(e) => { e.stopPropagation(); removeElement(el.id);}} className="text-gray-500 dark:text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
+                {elements.map((el, index) => (
+                    <div 
+                        key={el.id} 
+                        draggable 
+                        onDragStart={() => dragItem.current = index}
+                        onDragEnter={() => dragOverItem.current = index}
+                        onDragEnd={handleSort}
+                        onDragOver={(e) => e.preventDefault()}
+                        className={`p-2 rounded-md transition-all text-xs flex items-center justify-between ${selectedElementId === el.id ? 'bg-black/20 dark:bg-white/20 ring-2 ring-black dark:ring-white' : 'bg-gray-300/50 dark:bg-gray-700/50 hover:dark:bg-gray-700 hover:bg-gray-400/50'}`} 
+                        onClick={() => setSelectedElementId(el.id)}
+                    >
+                        <div className="flex items-center gap-2">
+                           <span className="cursor-grab text-gray-500 dark:text-gray-400"><DragHandleIcon /></span>
+                           <span className="font-mono">{el.id}</span>
                         </div>
+                        <button onClick={(e) => { e.stopPropagation(); removeElement(el.id);}} className="text-gray-500 dark:text-gray-400 hover:text-red-500"><TrashIcon className="w-4 h-4" /></button>
                     </div>
                 ))}
             </div>
             {selectedElement && (
                 <div className="border-t border-gray-300 dark:border-gray-700 pt-3 space-y-2 text-sm">
-                    <h4 className="font-bold">Properties: <span className="font-mono text-black dark:text-white">{selectedElement.id}</span></h4>
+                    <h4 className="font-bold">Properties: <span className="font-mono text-black/60 dark:text-white/60">{selectedElement.id}</span></h4>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                        <span className="self-center">ID:</span><input type="text" value={selectedElement.id} onChange={e => onIdChange(selectedElement.id, e.target.value)} className="font-mono bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                         <span className="self-center">X:</span><input type="number" value={selectedElement.x} onChange={e => updateElement(selectedElement.id, {x: parseInt(e.target.value)})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                         <span className="self-center">Y:</span><input type="number" value={selectedElement.y} onChange={e => updateElement(selectedElement.id, {y: parseInt(e.target.value)})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
                         <span className="self-center">Width:</span><input type="text" value={selectedElement.width} onChange={e => updateElement(selectedElement.id, {width: e.target.value})} className="bg-gray-200 dark:bg-gray-800 rounded p-1 w-full"/>
@@ -145,49 +198,81 @@ const ElementManager = ({ elements, setElements, selectedElementId, setSelectedE
     );
 };
 
-const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, settings }) => {
-    const stageParentRef = useRef<HTMLDivElement>(null);
-    const draggableInstances = useRef<{ [id: string]: globalThis.Draggable }>({});
+const PresetsPanel = ({ selectedElement, onApplyPreset, isScrollPreview, onScrollPreviewToggle }) => {
+    if (!selectedElement) return null;
+
+    const textPresets = [
+        { name: 'Typewriter', step: { target: `#${selectedElement.id}`, vars: { text: { value: selectedElement.text }, duration: 2, ease: 'none' } } },
+        { name: 'Stagger Fade In', step: { target: `#${selectedElement.id}`, vars: { autoAlpha: 1, y: 0, stagger: 0.1, duration: 0.5 }, position: '+=0.5' } }
+    ];
+
+    const scrollPresets = [
+        { name: 'Fade In on Scroll', step: { target: `#${selectedElement.id}`, vars: { autoAlpha: 1, y: 0, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top 80%', toggleActions: 'play none none none' } } } },
+        { name: 'Slide In on Scroll', step: { target: `#${selectedElement.id}`, vars: { x: 0, autoAlpha: 1, scrollTrigger: { trigger: `#${selectedElement.id}`, start: 'top 80%', toggleActions: 'play none none none' } } } }
+    ];
+    
+    return (
+        <div className="flex flex-col gap-3 p-3 bg-white/50 dark:bg-gray-900/50 rounded-md">
+            <h3 className="font-bold text-black dark:text-white">Presets</h3>
+            <div className="text-sm space-y-2">
+                {selectedElement.type === 'text' && (
+                    <div>
+                        <h4 className="text-xs font-semibold mb-1">Text Animations</h4>
+                        {textPresets.map(p => <button key={p.name} onClick={() => onApplyPreset(p.step)} className="w-full text-left p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors mb-1">{p.name}</button>)}
+                    </div>
+                )}
+                 <div>
+                    <h4 className="text-xs font-semibold mb-1">Scroll Animations</h4>
+                     <div className="flex items-center justify-between p-2 bg-gray-300/50 dark:bg-gray-700/50 rounded-md mb-2">
+                         <span>Scroll Preview</span>
+                         <label className="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={isScrollPreview} onChange={e => onScrollPreviewToggle(e.target.checked)} className="sr-only peer" />
+                            <div className="relative w-11 h-6 bg-gray-400 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-500 peer-checked:bg-black dark:peer-checked:bg-white"></div>
+                        </label>
+                     </div>
+                    {scrollPresets.map(p => <button key={p.name} onClick={() => onApplyPreset(p.step)} className="w-full text-left p-2 bg-gray-300 dark:bg-gray-700 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-md transition-colors mb-1">{p.name}</button>)}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, settings, isScrollPreview }) => {
+    const stageContainerRef = useRef<HTMLDivElement>(null);
+    const draggableInstances = useRef<{ [id: string]: Draggable }>({});
+    const [scale, setScale] = useState(1);
     
     useEffect(() => {
-        const stageParent = stageParentRef.current;
+        const stageParent = stageContainerRef.current;
         if (!stageParent) return;
-
-        const snapSize = 10;
-        const snapPoints = [
-            { x: 0, y: 0 }, { x: settings.width / 2, y: 0 }, { x: settings.width, y: 0 },
-            { x: 0, y: settings.height / 2 }, { x: settings.width / 2, y: settings.height / 2 }, { x: settings.width, y: settings.height / 2 },
-            { x: 0, y: settings.height }, { x: settings.width / 2, y: settings.height }, { x: settings.width, y: settings.height }
-        ];
-
+        
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                const scaleX = width / settings.width;
+                const scaleY = height / settings.height;
+                setScale(Math.min(scaleX, scaleY));
+            }
+        });
+        
+        resizeObserver.observe(stageParent);
+        
+        return () => resizeObserver.disconnect();
+    }, [settings.width, settings.height]);
+    
+    useEffect(() => {
         elements.forEach(el => {
             const target = document.getElementById(el.id);
             if (target && !draggableInstances.current[el.id]) {
                 draggableInstances.current[el.id] = new Draggable(target, {
-                    bounds: stageParent,
+                    bounds: "#stage-parent",
                     onPress() {
                         onSelectElement(el.id);
-                        gsap.set(target, { zIndex: 1 });
-                    },
-                    onDrag() {
-                        const width = this.target.offsetWidth;
-                        const height = this.target.offsetHeight;
-                        
-                        snapPoints.forEach(point => {
-                            // Snap center
-                            if (Math.abs(this.x + width/2 - point.x) < snapSize) this.x = point.x - width/2;
-                            if (Math.abs(this.y + height/2 - point.y) < snapSize) this.y = point.y - height/2;
-                            // Snap edges
-                            if (Math.abs(this.x - point.x) < snapSize) this.x = point.x;
-                            if (Math.abs(this.y - point.y) < snapSize) this.y = point.y;
-                            if (Math.abs(this.x + width - point.x) < snapSize) this.x = point.x - width;
-                            if (Math.abs(this.y + height - point.y) < snapSize) this.y = point.y - height;
-                        });
-
+                        gsap.set(target, { zIndex: 1 + elements.length });
                     },
                     onDragEnd() {
                         onUpdateElement(el.id, { x: Math.round(this.x), y: Math.round(this.y) });
-                        gsap.set(target, { zIndex: 0 });
+                        gsap.set(target, { zIndex: elements.findIndex(e => e.id === el.id) });
                     },
                 });
             }
@@ -200,32 +285,42 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
             }
         });
 
-    }, [elements, onSelectElement, onUpdateElement, settings.width, settings.height]);
+    }, [elements, onSelectElement, onUpdateElement]);
 
     return (
-        <div className="w-full h-full bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-700 flex items-center justify-center p-4">
-            <div
-                ref={stageParentRef}
-                className="relative shadow-lg"
-                style={{ width: `${settings.width}px`, height: `${settings.height}px`, backgroundColor: settings.backgroundColor, transition: 'all 0.3s ease', transform: 'scale(1)', transformOrigin: 'center center' }}
-                onClick={() => onSelectElement(null)}
-            >
-                {elements.map(el => {
-                    const style: React.CSSProperties = {
-                        position: 'absolute', left: `${el.x}px`, top: `${el.y}px`, width: el.width, height: el.height,
-                        opacity: el.opacity, transform: `rotate(${el.rotation}deg)`,
-                        outline: `2px solid ${selectedElementId === el.id ? (localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#000000') : 'transparent'}`,
-                        outlineOffset: '2px',
-                        transition: 'outline-color 0.2s', cursor: 'grab', userSelect: 'none'
-                    };
+        <div ref={stageContainerRef} className={`w-full h-full rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-700 flex items-center justify-center p-4 ${isScrollPreview ? 'bg-gray-300 dark:bg-gray-900' : 'bg-gray-200 dark:bg-gray-800'}`}>
+            <div className={`relative ${isScrollPreview ? 'overflow-y-auto w-full h-full' : ''}`}>
+                <div
+                    id="stage-parent"
+                    className="relative shadow-lg"
+                    style={{ 
+                        width: `${settings.width}px`, 
+                        height: `${isScrollPreview ? settings.height * 2 : settings.height}px`,
+                        backgroundColor: settings.backgroundColor, 
+                        transform: `scale(${scale})`, 
+                        transformOrigin: 'top center',
+                        transition: 'background-color 0.3s ease, height 0.3s ease',
+                    }}
+                    onClick={(e) => { e.stopPropagation(); onSelectElement(null);}}
+                >
+                    {elements.map((el, index) => {
+                        const style: React.CSSProperties = {
+                            position: 'absolute', left: `${el.x}px`, top: `${el.y}px`, width: el.width, height: el.height,
+                            opacity: el.opacity, transform: `rotate(${el.rotation}deg)`,
+                            outline: `2px solid ${selectedElementId === el.id ? (localStorage.getItem('theme') === 'dark' ? '#FFFFFF' : '#000000') : 'transparent'}`,
+                            outlineOffset: '2px',
+                            transition: 'outline-color 0.2s', cursor: 'grab', userSelect: 'none',
+                            zIndex: index
+                        };
 
-                    const sharedProps = {
-                        id: el.id,
-                        className: `element ${el.type}`,
-                        style: style,
-                    };
+                        const sharedProps = {
+                            id: el.id,
+                            className: `element ${el.type}`,
+                            style: style,
+                            onClick: (e) => { e.stopPropagation(); onSelectElement(el.id); },
+                            onMouseDown: (e) => e.stopPropagation(),
+                        };
 
-                    const renderContent = () => {
                         switch (el.type) {
                             case 'box': return <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor }} />;
                             case 'circle': return <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor, borderRadius: '50%' }} />;
@@ -238,10 +333,8 @@ const Stage = ({ elements, selectedElementId, onSelectElement, onUpdateElement, 
                                 <div {...sharedProps} style={{ ...style, backgroundColor: el.backgroundColor, color: el.color }} className="flex items-center justify-center"><VideoCameraIcon/></div>;
                             default: return null;
                         }
-                    };
-                    
-                    return <div key={el.id} onClick={(e) => { e.stopPropagation(); onSelectElement(el.id); }} onMouseDown={(e) => e.stopPropagation()}>{renderContent()}</div>
-                })}
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -324,8 +417,19 @@ const ExportPanel = ({ animationSteps, elements, canvasSettings }) => {
             }
         }).join('\n');
 
-        return `<!DOCTYPE html><html><head><title>GSAP Animation</title><style>body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #111827; } #animation-container { position: relative; width: ${canvasSettings.width}px; height: ${canvasSettings.height}px; background-color: ${canvasSettings.backgroundColor}; overflow: hidden; }</style></head><body><div id="animation-container">\n${elementHTML}\n  </div>\n  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>\n  <script>\n    document.addEventListener('DOMContentLoaded', () => {\n${gsapCode.split('\n').map(line => '      ' + line).join('\n')}\n    });\n  </script>\n</body></html>`;
-    }, [elements, canvasSettings, gsapCode]);
+        const hasScrollTrigger = animationSteps.some(step => step.vars.scrollTrigger);
+        const hasTextPlugin = animationSteps.some(step => step.vars.text);
+
+        const scripts = [
+            '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>',
+            hasScrollTrigger && '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>',
+            hasTextPlugin && '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>'
+        ].filter(Boolean).join('\n  ');
+
+        const containerHeight = hasScrollTrigger ? canvasSettings.height * 2 : canvasSettings.height;
+
+        return `<!DOCTYPE html><html><head><title>GSAP Animation</title><style>body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #111827; } #animation-container { position: relative; width: ${canvasSettings.width}px; height: ${containerHeight}px; background-color: ${canvasSettings.backgroundColor}; overflow: ${hasScrollTrigger ? 'visible' : 'hidden'}; }</style></head><body><div id="animation-container">\n${elementHTML}\n  </div>\n  ${scripts}\n  <script>\n    document.addEventListener('DOMContentLoaded', () => {\n${gsapCode.split('\n').map(line => '      ' + line).join('\n')}\n    });\n  </script>\n</body></html>`;
+    }, [elements, canvasSettings, gsapCode, animationSteps]);
     
     const exportCode = generateExportCode();
     const instructions = `1. In Webflow or Framer, add an "Embed" or "Custom Code" component.\n2. Set its dimensions to match your canvas (${canvasSettings.width}px x ${canvasSettings.height}px).\n3. Copy the full code from the "HTML Export" tab.\n4. Paste it into the embed component's code editor.\n5. Publish your site. The animation should now be live!`;
@@ -398,6 +502,7 @@ export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [isLeftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [isRightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [isScrollPreview, setIsScrollPreview] = useState(false);
 
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -411,7 +516,13 @@ export default function App() {
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   
   const resetElementsToInitialState = useCallback(() => {
-    gsap.set(elements.map(e => `#${e.id}`), { clearProps: "all" });
+    elements.forEach(el => {
+        gsap.set(`#${el.id}`, {
+            x: el.x, y: el.y, width: el.width, height: el.height,
+            rotation: el.rotation, opacity: el.opacity
+        });
+    });
+    ScrollTrigger.getAll().forEach(st => st.kill());
   }, [elements]);
 
   const handleSendMessage = useCallback(async (message: string) => {
@@ -454,72 +565,84 @@ export default function App() {
   }, [elements, resetElementsToInitialState, selectedElementId, animationSteps]);
   
   useEffect(() => {
-    if (timelineRef.current) {
-        timelineRef.current.kill();
-    }
+    // Kill previous instances
+    timelineRef.current?.kill();
+    ScrollTrigger.getAll().forEach(st => st.kill());
+
+    const timelineAnims = animationSteps.filter(step => !step.vars.scrollTrigger);
+    const scrollAnims = animationSteps.filter(step => step.vars.scrollTrigger);
+
+    // Create main timeline
     const tl = gsap.timeline({
+        paused: true,
         onStart: () => setIsPlaying(true),
-        onComplete: () => {
-            setIsPlaying(false);
-            tl.getChildren().forEach(tween => {
-               (tween.targets() as HTMLElement[]).forEach(target => {
-                   const id = target.id;
-                   const elementInState = elements.find(el => el.id === id);
-                   if (!elementInState) return;
-
-                   const propsToUpdate: Partial<StageElement> = {};
-                   Object.keys(tween.vars).forEach(key => {
-                       if (key in elementInState) {
-                           const propKey = key as keyof StageElement;
-                           let value: any = gsap.getProperty(target, propKey as string);
-                           if (typeof elementInState[propKey] === 'number') {
-                               value = parseFloat(value) || 0;
-                           }
-                           (propsToUpdate as any)[propKey] = value;
-                       }
-                   });
-                   setElements(prev => prev.map(el => el.id === id ? { ...el, ...propsToUpdate } : el));
-               });
-            });
-        }
+        onComplete: () => setIsPlaying(false),
+        onUpdate: () => { if (!tl.isActive()) setIsPlaying(false); }
     });
-
-    animationSteps.forEach(step => tl.to(step.target, step.vars, step.position));
+    if (timelineAnims.length > 0) {
+        timelineAnims.forEach(step => tl.to(step.target, step.vars, step.position));
+    }
     timelineRef.current = tl;
-  }, [animationSteps, elements]);
+    
+    // Create ScrollTrigger instances
+    if (scrollAnims.length > 0) {
+        scrollAnims.forEach(step => {
+            gsap.to(step.target, {
+                ...step.vars,
+                scrollTrigger: {
+                    ...step.vars.scrollTrigger,
+                    scroller: isScrollPreview ? "#stage-parent" : undefined
+                }
+            });
+        });
+    }
+
+    return () => {
+        timelineRef.current?.kill();
+        ScrollTrigger.getAll().forEach(st => st.kill());
+    };
+}, [animationSteps, elements, isScrollPreview]);
 
 
   const updateElementPosition = useCallback((id: string, newProps: Partial<StageElement>) => {
       setElements(prev => prev.map(el => el.id === id ? { ...el, ...newProps } : el));
   }, []);
 
+  const handleIdChange = (oldId: string, newId: string) => {
+    if (oldId === newId || !newId) return;
+    if (elements.some(el => el.id === newId)) return;
+    
+    setElements(prev => prev.map(el => el.id === oldId ? { ...el, id: newId } : el));
+    if (selectedElementId === oldId) setSelectedElementId(newId);
+    setAnimationSteps(prev => prev.map(step => ({
+        ...step,
+        target: step.target === `#${oldId}` ? `#${newId}` : step.target
+    })));
+  };
+
   const handlePlayPause = () => {
     if (!timelineRef.current) return;
-    if (timelineRef.current.isActive()) {
-        timelineRef.current.pause();
-        setIsPlaying(false);
-    } else {
-        if (timelineRef.current.progress() === 1) {
-            timelineRef.current.restart();
-        } else {
-            timelineRef.current.play();
-        }
-        setIsPlaying(true);
-    }
+    if (timelineRef.current.isActive()) timelineRef.current.pause();
+    else if (timelineRef.current.progress() === 1) timelineRef.current.restart();
+    else timelineRef.current.play();
   };
-  const handleRestart = () => { timelineRef.current?.restart(); setIsPlaying(true); };
+  const handleRestart = () => { timelineRef.current?.restart(); };
   const handleClearAnimation = () => {
     resetElementsToInitialState();
     setAnimationSteps([]);
-    setIsPlaying(false);
   }
+
+  const handleApplyPreset = (step: AnimationStep) => {
+    resetElementsToInitialState();
+    setAnimationSteps(prev => [...prev, step]);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col p-4 font-sans">
         <header className="flex items-center justify-between pb-4 border-b border-gray-300 dark:border-gray-700">
             <div>
                 <h1 className="text-2xl font-bold tracking-wider">GSAP-GPT</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">An AI assistant to generate GSAP animations from your imagination.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">An AI-powered playground to generate GSAP animations from natural language.</p>
             </div>
             <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Toggle Theme">
                 {theme === 'dark' ? <SunIcon/> : <MoonIcon/>}
@@ -528,14 +651,14 @@ export default function App() {
 
         <main className="flex-grow flex gap-4 mt-4 min-h-0">
             <div className="relative h-full flex items-stretch">
-                <LeftPanel isCollapsed={isLeftPanelCollapsed} elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} canvasSettings={canvasSettings} setCanvasSettings={setCanvasSettings} />
+                <LeftPanel isCollapsed={isLeftPanelCollapsed} elements={elements} setElements={setElements} selectedElementId={selectedElementId} setSelectedElementId={setSelectedElementId} canvasSettings={canvasSettings} setCanvasSettings={setCanvasSettings} onIdChange={handleIdChange} onApplyPreset={handleApplyPreset} isScrollPreview={isScrollPreview} onScrollPreviewToggle={setIsScrollPreview} />
                 <button onClick={() => setLeftPanelCollapsed(c => !c)} className="absolute top-1/2 -translate-y-1/2 z-10 bg-gray-300 dark:bg-gray-700 h-10 w-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors" style={{right: '-1.5rem', borderRadius: '0 0.5rem 0.5rem 0'}}>
                     <ChevronRightIcon className={`w-5 h-5 transition-transform ${isLeftPanelCollapsed ? '' : 'rotate-180'}`} />
                 </button>
             </div>
 
             <div className="flex-grow flex flex-col gap-4 min-w-0">
-              <Stage elements={elements} selectedElementId={selectedElementId} onSelectElement={setSelectedElementId} onUpdateElement={updateElementPosition} settings={canvasSettings}/>
+              <Stage elements={elements} selectedElementId={selectedElementId} onSelectElement={setSelectedElementId} onUpdateElement={updateElementPosition} settings={canvasSettings} isScrollPreview={isScrollPreview} />
               <TimelinePanel steps={animationSteps} onPlayPause={handlePlayPause} onRestart={handleRestart} onClear={handleClearAnimation} isPlaying={isPlaying}/>
             </div>
 

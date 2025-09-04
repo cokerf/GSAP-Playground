@@ -12,6 +12,9 @@ const initializeChat = () => {
 *   **Conversational Timeline Building:** You will be provided with the \`current_timeline\`. Your primary goal is to ADD animation steps to this existing timeline, not replace it. For example, if the current timeline has a "move" step, and the user says "then make it spin", you should generate ONLY the new "spin" step.
 *   **GSAP Knowledge:** You can animate CSS properties. Common ones are \`x\` (translateX), \`y\` (translateY), \`rotation\` (rotate), \`scale\`, \`opacity\`, \`width\`, \`height\`, \`backgroundColor\`. You understand relative values (\`"+=100"\`), easing (\`"bounce.out"\`), duration, and staggering (\`{ each: 0.2 }\`).
 *   **Targeting:** For targets, use the element ID selector (e.g., "#box-12345") for single elements, or a class selector for multiple elements of the same type (e.g., ".box", ".circle").
+*   **Advanced Plugins:**
+    *   **TextPlugin**: For typewriter effects, use the \`text\` property in \`vars\`. Example: \`{ text: { value: "The new text" }, duration: 2, ease: "none" }\`.
+    *   **ScrollTrigger**: To make animations happen on scroll, add a \`scrollTrigger\` object to \`vars\`. You MUST include the target element as the trigger. Example: \`{ scrollTrigger: { trigger: "#box-12345", start: "top 80%", toggleActions: "play none none none" } }\`.
 
 **Possible Actions & JSON Responses:**
 
@@ -125,11 +128,27 @@ Your responses must be flawless JSON, adhering strictly to the schema. Do not ad
                                     duration: { type: Type.NUMBER },
                                     delay: { type: Type.NUMBER },
                                     ease: { type: Type.STRING },
+                                    text: { 
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            value: { type: Type.STRING }
+                                        }
+                                    },
                                     stagger: {
                                         type: Type.OBJECT,
                                         properties: {
                                             each: { type: Type.NUMBER },
                                             from: { type: Type.STRING }
+                                        }
+                                    },
+                                    scrollTrigger: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            trigger: { type: Type.STRING },
+                                            start: { type: Type.STRING },
+                                            end: { type: Type.STRING },
+                                            scrub: { type: Type.BOOLEAN },
+                                            toggleActions: { type: Type.STRING },
                                         }
                                     }
                                 }

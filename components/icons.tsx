@@ -140,8 +140,8 @@ export const SettingsIcon = ({ className = 'w-6 h-6' }: { className?: string }) 
 );
 
 export const ChatBubbleIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.76 9.76 0 0 1-2.53-.388m-1.023-3.792a.75.75 0 0 1 .232-1.032l3.322-2.162a.75.75 0 0 0 0-1.182l-3.322-2.162a.75.75 0 0 1-1.032-.232A9.76 9.76 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
     </svg>
 );
 
@@ -154,5 +154,13 @@ export const CodeBracketIcon = ({ className = 'w-6 h-6' }: { className?: string 
 export const ClearIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </svg>
+);
+
+export const DragHandleIcon = ({ className = 'w-4 h-4' }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+        <circle cx="5" cy="10" r="1.5" />
+        <circle cx="10" cy="10" r="1.5" />
+        <circle cx="15" cy="10" r="1.5" />
     </svg>
 );
